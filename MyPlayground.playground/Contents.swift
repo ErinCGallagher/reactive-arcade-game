@@ -4,52 +4,17 @@ import PlaygroundSupport
 import SpriteKit
 
 class GameScene: SKScene {
+    let kBoardCategory: UInt32 = 0x1 << 0
     
+    // Control buttons
+    var leftButtonTapped: Int = 0
+    var rightButtonTapped: Int = 0
     
     override func didMove(to view: SKView) {
-        drawBoard()
-        
-        drawArrowKeys()
+        setupBoard()
+        setupArrowButtons()
     }
     
-    
-    private func drawArrowKeys() {
-        let numRows = 2
-        let numCols = 3
-        let squareSize = CGSize(width: 50, height: 50)
-        let xOffset:CGFloat = 50
-        let yOffset:CGFloat = -100
-        for row in 0...numRows-1 {
-            for col in 0...numCols-1 {
-                if row == 1 && (col == 0 || col == 2) {
-
-                } else {
-                    let square = SKSpriteNode(color: SKColor.blue, size: squareSize)
-                    square.position = CGPoint(x: CGFloat(col) * squareSize.width + xOffset, y: CGFloat(row) * squareSize.height + yOffset)
-                    self.addChild(square)
-                }
-                
-            }
-        }
-    }
-    
-    private func drawBoard() {
-        let numRows = 10
-        let numCols = 10
-        let squareSize = CGSize(width: 40, height: 40)
-        let xOffset:CGFloat = -100
-        let yOffset:CGFloat = 10
-        for row in 0...numRows-1 {
-            for col in 0...numCols-1 {
-                let colNames:String = "abcdefghij"
-                let colChar = Array(colNames)[col]
-                let square = SKSpriteNode(color: SKColor.white, size: squareSize)
-                square.position = CGPoint(x: CGFloat(col) * squareSize.width + xOffset, y: CGFloat(row) * squareSize.height + yOffset)
-                square.name = "\(colChar)\(row)"
-                self.addChild(square)
-            }
-        }
-    }
     
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -58,6 +23,56 @@ class GameScene: SKScene {
 
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
+}
+
+// MARK: - Setup functions
+
+extension GameScene: SKPhysicsContactDelegate {
+
+    private func setupBoard() {
+        physicsWorld.contactDelegate = self
+        physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
+        physicsBody!.categoryBitMask = kBoardCategory
+        self.backgroundColor = SKColor.black
+    }
+
+    private func setupArrowButtons() {
+        let buttonWidth = Int(size.width/2)
+        let buttonHeight = 76
+        let leftButton = Button(texture: nil, color: .clear, size: CGSize(width: buttonWidth, height: buttonHeight))
+        leftButton.name = ControlButton.left.rawValue
+        leftButton.position = CGPoint(x: buttonWidth/2, y: buttonHeight/2)
+        leftButton.delegate = self
+        addChild(leftButton)
+
+        let rightButton = Button(texture: nil, color: .clear, size: CGSize(width: buttonWidth, height: buttonHeight))
+        rightButton.name = ControlButton.right.rawValue
+        rightButton.position = CGPoint(x: buttonWidth/2 + buttonWidth + 1, y: buttonHeight/2)
+        rightButton.delegate = self
+        addChild(rightButton)
+    }
+}
+
+// MARK: - ButtonDelegate
+
+extension GameScene: ButtonDelegate {
+    enum ControlButton: String {
+        case left = "LeftButton"
+        case right = "RightButton"
+    }
+
+    func buttonClicked(sender: Button) {
+        switch sender.name {
+        case ControlButton.left.rawValue:
+            print("left button ")
+            leftButtonTapped += 1
+        case ControlButton.right.rawValue:
+            print("right button ")
+            rightButtonTapped += 1
+        default: break
+        }
+    }
+}
     }
 }
 
