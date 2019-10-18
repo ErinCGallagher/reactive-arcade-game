@@ -1,0 +1,5 @@
+.DS_Store
+*.xcuserstate
+xcuserdata/**/*
+!xcuserdata/**/xcschemes/*
+SKInvaders/SKInvaders.xcodeproj/xcuserdata/katiamaeda.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
