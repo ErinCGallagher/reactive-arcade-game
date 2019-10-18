@@ -5,27 +5,13 @@ import SpriteKit
 
 class GameScene: SKScene {
     
-    // col name and row number
-    var playerPos: (String, Int) = ("e", 0)
-    var gamePiece: SKSpriteNode = SKSpriteNode(imageNamed: "circle")
     
     override func didMove(to view: SKView) {
         drawBoard()
         
         drawArrowKeys()
-        
-        if let square = updatePlayerWith(pos: playerPos) {
-//            gamePiece = SKSpriteNode(imageNamed: "circle")
-            gamePiece.size = CGSize(width: 24, height: 24)
-            gamePiece.color = SKColor.red
-            square.addChild(gamePiece)
-        }
     }
     
-    private func updatePlayerWith(pos:(String, Int)) -> SKSpriteNode? {
-        let playerSquare:SKSpriteNode? = self.childNode(withName: pos.0 + String(pos.1)) as! SKSpriteNode?
-        return playerSquare
-    }
     
     private func drawArrowKeys() {
         let numRows = 2
@@ -65,21 +51,8 @@ class GameScene: SKScene {
         }
     }
     
-    @objc static override var supportsSecureCoding: Bool {
-        // SKNode conforms to NSSecureCoding, so any subclass going
-        // through the decoding process must support secure coding
-        get {
-            return true
-        }
-    }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        print("touch")
-        playerPos.1 += 1
-        //todo: determine how to update the player position
-//        if let newplayerPos = updatePlayerWith(pos: playerPos) {
-//            gamePiece.move(toParent: newplayerPos)
-//        }
     }
 
 
@@ -88,14 +61,11 @@ class GameScene: SKScene {
     }
 }
 
-// Load the SKScene from 'GameScene.sks'
-let sceneView = SKView(frame: CGRect(x:0 , y:0, width: 640, height: 480))
+// Load GameScene into playground's live view
+let sceneView = SKView(frame: CGRect(x:0 , y:0, width: 480, height: 640))
 if let scene = GameScene(fileNamed: "GameScene") {
     // Set the scale mode to scale to fit the window
     scene.scaleMode = .aspectFill
-    
-    // Present the scene
     sceneView.presentScene(scene)
 }
-
 PlaygroundSupport.PlaygroundPage.current.liveView = sceneView
