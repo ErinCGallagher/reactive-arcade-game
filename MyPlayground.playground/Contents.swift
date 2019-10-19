@@ -6,15 +6,22 @@ import SpriteKit
 class GameScene: SKScene {
     let kBoardCategory: UInt32 = 0x1 << 0
     let kPlayerCategory: UInt32 = 0x1 << 1
+    let kEnemyCategory: UInt32 = 0x1 << 2
     
     // Control buttons
     var leftButtonTapped: Int = 0
     var rightButtonTapped: Int = 0
     
+    // Enemies
+    var enemyTimeLastFrame: CFTimeInterval = 0.0
+    let enemyTimePerFrame: CFTimeInterval = 1.0
+    var enemyDirection: EnemyDirection = .right
+    
     override func didMove(to view: SKView) {
         setupBoard()
         setupArrowButtons()
         setupPlayer()
+        setupEnemies()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -24,6 +31,7 @@ class GameScene: SKScene {
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
         processPlayerMovement()
+        processEnemiesMovement(for: currentTime)
     }
 }
 
@@ -32,6 +40,7 @@ class GameScene: SKScene {
 extension GameScene: SKPhysicsContactDelegate {
     enum ChildNodeName: String {
         case player = "player"
+        case enemy = "enemy"
     }
     
     private func setupBoard() {
@@ -71,11 +80,62 @@ extension GameScene: SKPhysicsContactDelegate {
         player.position = CGPoint(x: size.width / 2.0, y: playerSize.height / 2.0)
         addChild(player)
     }
+    
+    private func setupEnemies() {
+        let enemiesPerRow = 6
+        let enemiesPerColumn = 6
+        let rowHeight: CGFloat = 32.0
+        let columnWidth: CGFloat = 36.0
+        let baseOrigin = CGPoint(x: size.width / 3, y: size.height / 2)
+        
+        for row in 0..<enemiesPerRow {
+            let enemyPositionY = CGFloat(row) * rowHeight + baseOrigin.y
+            
+            for col in 0..<enemiesPerColumn {
+                let enemy = makeEnemy(for: row)
+                enemy.position = CGPoint(x: CGFloat(col) * columnWidth + baseOrigin.x, y: enemyPositionY)
+                addChild(enemy)
+            }
+        }
+    }
+    
+    private func makeEnemy(for row: Int) -> SKNode {
+        let enemyTextures = [
+            SKTexture(imageNamed: "Invader\(row%3)_00.png"),
+            SKTexture(imageNamed: "Invader\(row%3)_00.png")
+        ]
+        
+        let enemy = SKSpriteNode(texture: enemyTextures[0])
+        enemy.name = ChildNodeName.enemy.rawValue
+        enemy.run(SKAction.repeatForever(SKAction.animate(with: enemyTextures, timePerFrame: enemyTimePerFrame)))
+        enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.frame.size)
+        enemy.physicsBody!.isDynamic = false
+        enemy.physicsBody!.categoryBitMask = kEnemyCategory
+        enemy.physicsBody!.contactTestBitMask = 0x0
+        enemy.physicsBody!.collisionBitMask = 0x0
+        return enemy
+    }
 }
 
 // MARK: - Update functions
 
 extension GameScene {
+    enum EnemyDirection {
+        case right
+        case left
+        case downThenRight
+        case downThenLeft
+        
+        var nextDirection: EnemyDirection {
+            switch self {
+            case .right: return .downThenLeft
+            case .left: return .downThenRight
+            case .downThenRight: return .right
+            case .downThenLeft: return .left
+            }
+        }
+    }
+    
     private func processPlayerMovement() {
         if let player = childNode(withName: ChildNodeName.player.rawValue) as? SKSpriteNode,
             (leftButtonTapped > 0 || rightButtonTapped > 0) {
@@ -89,6 +149,44 @@ extension GameScene {
             rightButtonTapped = 0
         }
     }
+    
+    private func processEnemiesMovement(for currentTime: CFTimeInterval) {
+        if (currentTime - enemyTimeLastFrame < enemyTimePerFrame) {
+            return
+        }
+        
+        enemyTimeLastFrame = currentTime
+        updateEnemyDirection()
+
+        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
+            guard let this = self else { return }
+            let jumpPerFrame: CGFloat = 10.0
+            switch this.enemyDirection {
+            case .right:
+                node.position = CGPoint(x: node.position.x + jumpPerFrame, y: node.position.y)
+            case .left:
+                node.position = CGPoint(x: node.position.x - jumpPerFrame, y: node.position.y)
+            case .downThenLeft, .downThenRight:
+                node.position = CGPoint(x: node.position.x, y: node.position.y - jumpPerFrame)
+            }
+        }
+    }
+    
+    private func updateEnemyDirection() {
+        if [.downThenLeft, .downThenRight].contains(enemyDirection) {
+            enemyDirection = enemyDirection.nextDirection
+            return
+        }
+
+        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
+            guard let this = self else { return }
+            if (node.frame.minX <= 1.0 ||
+                node.frame.maxX >= node.scene!.size.width - 1.0) {
+                this.enemyDirection = this.enemyDirection.nextDirection
+                stop.initialize(to: true)
+            }
+        }
+    }
 }
 
 // MARK: - ButtonDelegate
@@ -99,7 +197,7 @@ extension GameScene: ButtonDelegate {
         case right = "RightButton"
     }
     
-    func buttonClicked(sender: Button) {
+    internal func buttonClicked(sender: Button) {
         switch sender.name {
         case ControlButton.left.rawValue:
             print("left button ")
