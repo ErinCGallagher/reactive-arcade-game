@@ -97,12 +97,13 @@ extension GameScene {
         player.name = ChildNodeName.player.rawValue
         let playerSize = player.frame.size
         player.physicsBody = SKPhysicsBody(rectangleOf: playerSize)
-        player.physicsBody!.isDynamic = true
-        player.physicsBody!.affectedByGravity = false
-        player.physicsBody!.mass = 0.02
-        player.physicsBody!.categoryBitMask = kPlayerCategory
-        player.physicsBody!.contactTestBitMask = 0x0
-        player.physicsBody!.collisionBitMask = kBoardCategory
+        if let playerBody = player.physicsBody {
+            playerBody.isDynamic = true
+            playerBody.affectedByGravity = false
+            playerBody.categoryBitMask = kPlayerCategory
+            playerBody.contactTestBitMask = 0x0
+            playerBody.collisionBitMask = kBoardCategory
+        }
         player.position = CGPoint(x: size.width / 2.0, y: playerSize.height / 2.0)
         addChild(player)
     }
@@ -136,11 +137,14 @@ extension GameScene {
         enemy.name = ChildNodeName.enemy.rawValue
 //        enemy.run(SKAction.repeatForever(SKAction.animate(with: enemyTextures, timePerFrame: enemyTimePerFrame)))
         enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.frame.size)
-        enemy.physicsBody!.isDynamic = true
-        enemy.physicsBody!.affectedByGravity = false
-        enemy.physicsBody!.categoryBitMask = kEnemyCategory
-        enemy.physicsBody!.contactTestBitMask = 0x0
-        enemy.physicsBody!.collisionBitMask = 0x0
+        if let enemyBody = enemy.physicsBody {
+            enemyBody.isDynamic = true
+            enemyBody.affectedByGravity = false
+            enemyBody.categoryBitMask = kEnemyCategory
+            enemyBody.contactTestBitMask = 0x0
+            enemyBody.collisionBitMask = 0x0
+        }
+        
         return enemy
     }
     
