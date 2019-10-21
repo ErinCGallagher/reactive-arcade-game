@@ -18,17 +18,21 @@ class GameScene: SKScene {
     var enemyTimeLastFrame: CFTimeInterval = 0.0
     let enemyTimePerFrame: CFTimeInterval = 1.0
     var enemyDirection: EnemyDirection = .right
+    let kMinEnemyBottomHeight: Float = 32.0
     
     // HUD
     var score: Int = 0
     var playerHealth: Float = 1.0
     var scoreLabel: SKLabelNode!
     var healthLabel: SKLabelNode!
+    var gameEnded: Bool = false
+    
     override func didMove(to view: SKView) {
         setupBoard()
         setupArrowButtons()
         setupPlayer()
         setupEnemies()
+        setupHud()
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -36,16 +40,24 @@ class GameScene: SKScene {
             let location = touch.location(in: self)
             let node: SKNode = atPoint(location)
             if(node.name == ChildNodeName.board.rawValue) {
-               firePlayerBullets()
+                firePlayerBullets()
             }
         }
     }
     
     override func update(_ currentTime: TimeInterval) {
+        if gameEnded {
+            return
+        }
+        
         // Called before each frame is rendered
         processEnemiesBullets()
         processPlayerMovement()
         processEnemiesMovement(for: currentTime)
+        
+        if isGameOver() {
+            endGame()
+        }
     }
 }
 
@@ -79,13 +91,13 @@ extension GameScene {
     private func setupArrowButtons() {
         let buttonWidth = Int(size.width/2)
         let buttonHeight = 76
-        let leftButton = Button(texture: nil, color: .lightGray, size: CGSize(width: buttonWidth, height: buttonHeight))
+        let leftButton = Button(texture: nil, color: .clear, size: CGSize(width: buttonWidth, height: buttonHeight))
         leftButton.name = ControlButton.left.rawValue
         leftButton.position = CGPoint(x: buttonWidth/2, y: buttonHeight/2)
         leftButton.delegate = self
         addChild(leftButton)
         
-        let rightButton = Button(texture: nil, color: .lightGray, size: CGSize(width: buttonWidth, height: buttonHeight))
+        let rightButton = Button(texture: nil, color: .clear, size: CGSize(width: buttonWidth, height: buttonHeight))
         rightButton.name = ControlButton.right.rawValue
         rightButton.position = CGPoint(x: buttonWidth/2 + buttonWidth + 1, y: buttonHeight/2)
         rightButton.delegate = self
@@ -173,6 +185,28 @@ extension GameScene {
         }
         return bullet
     }
+    
+    private func setupHud() {
+        scoreLabel = SKLabelNode(fontNamed: "Courier")
+        scoreLabel.fontSize = 25
+        scoreLabel.fontColor = SKColor.green
+        scoreLabel.text = String(format: "Score: %04u", 0)
+        scoreLabel.position = CGPoint(
+            x: frame.size.width / 2,
+            y: size.height - (40 + scoreLabel.frame.size.height/2)
+        )
+        addChild(scoreLabel)
+        
+        healthLabel = SKLabelNode(fontNamed: "Courier")
+        healthLabel.fontSize = 25
+        healthLabel.fontColor = SKColor.red
+        healthLabel.text = String(format: "Health: %.1f%%", playerHealth * 100.0)
+        healthLabel.position = CGPoint(
+            x: frame.size.width / 2,
+            y: size.height - (80 + healthLabel.frame.size.height/2)
+        )
+        addChild(healthLabel)
+    }
 }
 
 // MARK: - SKPhysicsContactDelegate
@@ -195,7 +229,7 @@ extension GameScene: SKPhysicsContactDelegate {
         if bodyANode.parent == nil || bodyBNode.parent == nil {
             return
         }
-
+        
         let nodeNames = [bodyANodeName, bodyBNodeName]
         if nodeNames.contains(ChildNodeName.player.rawValue) && nodeNames.contains(ChildNodeName.enemyBullet.rawValue) {
             // Enemy bullet hit player
@@ -227,12 +261,12 @@ extension GameScene: SKPhysicsContactDelegate {
     
     private func adjustScore(by points: Int) {
         score += points
-        print("enemy hit player")
+        scoreLabel.text = String(format: "Score: %04u", score)
     }
     
     private func adjustPlayerHealth(by healthAdjustment: Float) {
         playerHealth = max(playerHealth + healthAdjustment, 0)
-        print("player hit enemy")
+        healthLabel.text = String(format: "Health: %.1f%%", playerHealth * 100.0)
     }
 }
 
@@ -273,7 +307,7 @@ extension GameScene {
         if (currentTime - enemyTimeLastFrame < enemyTimePerFrame) {
             return
         }
-
+        
         enemyTimeLastFrame = currentTime
         updateEnemyDirection()
         
@@ -312,12 +346,12 @@ extension GameScene {
         if existingBullet != nil {
             return
         }
-
+        
         let allEnemies = self[ChildNodeName.enemy.rawValue]
         if allEnemies.isEmpty {
             return
         }
-
+        
         let randomEnemyIndex = Int(arc4random_uniform(UInt32(allEnemies.count)))
         let randomEnemy = allEnemies[randomEnemyIndex]
         
@@ -349,7 +383,7 @@ extension GameScene {
         if existingBullet != nil {
             return
         }
-
+        
         if let player = childNode(withName: ChildNodeName.player.rawValue) {
             let bullet = makeBullet(ofType: .playerBullet)
             bullet.position = CGPoint(
@@ -362,6 +396,27 @@ extension GameScene {
             )
             fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
         }
+    }
+    
+    private func isGameOver() -> Bool {
+        let enemy = childNode(withName: ChildNodeName.enemy.rawValue)
+        let player = childNode(withName: ChildNodeName.player.rawValue)
+        
+        var enemyTooLow = false
+        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
+            guard let this = self else { return }
+            if (Float(node.frame.minY) <= this.kMinEnemyBottomHeight)   {
+                enemyTooLow = true
+                stop.initialize(to: true)
+            }
+        }
+        return enemy == nil || enemyTooLow || player == nil
+    }
+    
+    func endGame() {
+        gameEnded = true
+        scoreLabel.text = ""
+        healthLabel.text = "Game Over"
     }
 }
 
