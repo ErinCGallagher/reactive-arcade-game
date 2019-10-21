@@ -7,6 +7,8 @@ class GameScene: SKScene {
     let kBoardCategory: UInt32 = 0x1 << 0
     let kPlayerCategory: UInt32 = 0x1 << 1
     let kEnemyCategory: UInt32 = 0x1 << 2
+    let kPlayerBulletCategory: UInt32 = 0x1 << 3
+    let kEnemyBulletCategory: UInt32 = 0x1 << 4
     
     // Control buttons
     var leftButtonTapped: Int = 0
@@ -17,6 +19,11 @@ class GameScene: SKScene {
     let enemyTimePerFrame: CFTimeInterval = 1.0
     var enemyDirection: EnemyDirection = .right
     
+    // HUD
+    var score: Int = 0
+    var playerHealth: Float = 1.0
+    var scoreLabel: SKLabelNode!
+    var healthLabel: SKLabelNode!
     override func didMove(to view: SKView) {
         setupBoard()
         setupArrowButtons()
@@ -25,11 +32,18 @@ class GameScene: SKScene {
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        
+        for touch in touches{
+            let location = touch.location(in: self)
+            let node: SKNode = atPoint(location)
+            if(node.name == ChildNodeName.board.rawValue) {
+               firePlayerBullets()
+            }
+        }
     }
     
     override func update(_ currentTime: TimeInterval) {
         // Called before each frame is rendered
+        processEnemiesBullets()
         processPlayerMovement()
         processEnemiesMovement(for: currentTime)
     }
@@ -37,17 +51,29 @@ class GameScene: SKScene {
 
 // MARK: - Setup functions
 
-extension GameScene: SKPhysicsContactDelegate {
+extension GameScene {
     enum ChildNodeName: String {
+        case board = "board"
         case player = "player"
         case enemy = "enemy"
+        case playerBullet = "playerBullet"
+        case enemyBullet = "enemyBullet"
     }
     
     private func setupBoard() {
         physicsWorld.contactDelegate = self
         physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
-        physicsBody!.categoryBitMask = kBoardCategory
-        self.backgroundColor = SKColor.black
+        if let physicsBody = physicsBody {
+            physicsBody.isDynamic = false
+            physicsBody.categoryBitMask = kBoardCategory
+        }
+        
+        self.backgroundColor = SKColor.darkGray
+        let boardSize = CGSize(width: size.width-4, height: size.height-4)
+        let board = SKSpriteNode(color: SKColor.black, size: boardSize)
+        board.name = ChildNodeName.board.rawValue
+        board.position = CGPoint(x: size.width/2, y: size.height/2)
+        addChild(board)
     }
     
     private func setupArrowButtons() {
@@ -102,18 +128,107 @@ extension GameScene: SKPhysicsContactDelegate {
     private func makeEnemy(for row: Int) -> SKNode {
         let enemyTextures = [
             SKTexture(imageNamed: "Invader\(row%3)_00.png"),
-            SKTexture(imageNamed: "Invader\(row%3)_00.png")
+            SKTexture(imageNamed: "Invader\(row%3)_01.png")
         ]
         
-        let enemy = SKSpriteNode(texture: enemyTextures[0])
+//        let enemy = SKSpriteNode(texture: enemyTextures[0])
+        let enemy = SKSpriteNode(imageNamed: "Invader\(row%3)_00.png")
         enemy.name = ChildNodeName.enemy.rawValue
-        enemy.run(SKAction.repeatForever(SKAction.animate(with: enemyTextures, timePerFrame: enemyTimePerFrame)))
+//        enemy.run(SKAction.repeatForever(SKAction.animate(with: enemyTextures, timePerFrame: enemyTimePerFrame)))
         enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.frame.size)
-        enemy.physicsBody!.isDynamic = false
+        enemy.physicsBody!.isDynamic = true
+        enemy.physicsBody!.affectedByGravity = false
         enemy.physicsBody!.categoryBitMask = kEnemyCategory
         enemy.physicsBody!.contactTestBitMask = 0x0
         enemy.physicsBody!.collisionBitMask = 0x0
         return enemy
+    }
+    
+    private func makeBullet(ofType bulletType: ChildNodeName) -> SKNode {
+        let bulletSize = CGSize(width:4, height: 8)
+        let bullet = SKSpriteNode(color: SKColor.green, size: bulletSize)
+        bullet.name = bulletType.rawValue
+        bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.frame.size)
+        if let bulletBody = bullet.physicsBody {
+            bulletBody.isDynamic = true
+            bulletBody.affectedByGravity = false
+            bulletBody.collisionBitMask = 0x0
+            
+            switch bulletType {
+            case .playerBullet:
+                bullet.color = SKColor.green
+                bulletBody.categoryBitMask = kPlayerBulletCategory
+                bulletBody.contactTestBitMask = kEnemyCategory
+            case .enemyBullet:
+                bullet.color = SKColor.magenta
+                bulletBody.categoryBitMask = kEnemyBulletCategory
+                bulletBody.contactTestBitMask = kPlayerCategory
+            case .board, .player, .enemy:
+                break
+            }
+        }
+        return bullet
+    }
+}
+
+// MARK: - SKPhysicsContactDelegate
+
+extension GameScene: SKPhysicsContactDelegate {
+    func didBegin(_ contact: SKPhysicsContact) {
+        handle(contact)
+    }
+    
+    private func handle(_ contact: SKPhysicsContact) {
+        guard let bodyANode = contact.bodyA.node,
+              let bodyANodeName = bodyANode.name,
+              let bodyBNode = contact.bodyB.node,
+              let bodyBNodeName = bodyBNode.name
+        else {
+            return
+        }
+        
+        // Ensure you haven't already handled this contact and removed its nodes
+        if bodyANode.parent == nil || bodyBNode.parent == nil {
+            return
+        }
+
+        let nodeNames = [bodyANodeName, bodyBNodeName]
+        if nodeNames.contains(ChildNodeName.player.rawValue) && nodeNames.contains(ChildNodeName.enemyBullet.rawValue) {
+            // Enemy bullet hit player
+            adjustPlayerHealth(by: -0.334)
+            
+            if playerHealth <= 0.0 {
+                bodyANode.removeFromParent()
+                bodyBNode.removeFromParent()
+            } else {
+                // 3
+                if let player = childNode(withName: ChildNodeName.player.rawValue) {
+                    player.alpha = CGFloat(playerHealth)
+                    if bodyANode == player {
+                        bodyBNode.removeFromParent()
+                    } else {
+                        bodyANode.removeFromParent()
+                    }
+                }
+            }
+            
+        } else if nodeNames.contains(ChildNodeName.enemy.rawValue) && nodeNames.contains(ChildNodeName.playerBullet.rawValue) {
+            // Player hit an enemy
+//            run(SKAction.playSoundFileNamed("InvaderHit.wav", waitForCompletion: false))
+            bodyANode.removeFromParent()
+            bodyBNode.removeFromParent()
+            adjustScore(by: 100)
+        }
+    }
+    
+    private func adjustScore(by points: Int) {
+        score += points
+        print("enemy hit player")
+    }
+    
+    private func adjustPlayerHealth(by healthAdjustment: Float) {
+        playerHealth = max(playerHealth + healthAdjustment, 0)
+        print("player hit enemy")
     }
 }
 
@@ -154,10 +269,10 @@ extension GameScene {
         if (currentTime - enemyTimeLastFrame < enemyTimePerFrame) {
             return
         }
-        
+
         enemyTimeLastFrame = currentTime
         updateEnemyDirection()
-
+        
         enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
             let jumpPerFrame: CGFloat = 10.0
@@ -177,7 +292,7 @@ extension GameScene {
             enemyDirection = enemyDirection.nextDirection
             return
         }
-
+        
         enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
             if (node.frame.minX <= 1.0 ||
@@ -185,6 +300,63 @@ extension GameScene {
                 this.enemyDirection = this.enemyDirection.nextDirection
                 stop.initialize(to: true)
             }
+        }
+    }
+    
+    private func processEnemiesBullets() {
+        let existingBullet = childNode(withName: ChildNodeName.enemyBullet.rawValue)
+        if existingBullet != nil {
+            return
+        }
+
+        let allEnemies = self[ChildNodeName.enemy.rawValue]
+        if allEnemies.isEmpty {
+            return
+        }
+
+        let randomEnemyIndex = Int(arc4random_uniform(UInt32(allEnemies.count)))
+        let randomEnemy = allEnemies[randomEnemyIndex]
+        
+        let bullet = makeBullet(ofType: .enemyBullet)
+        bullet.position = CGPoint(
+            x: randomEnemy.position.x,
+            y: randomEnemy.position.y - randomEnemy.frame.size.height / 2 + bullet.frame.size.height / 2
+        )
+        let bulletDestination = CGPoint(
+            x: randomEnemy.position.x,
+            y: -(bullet.frame.size.height / 2)
+        )
+        
+        fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
+    }
+    
+    private func fireBullet(bullet: SKNode, toDestination destination: CGPoint, withDuration duration: CFTimeInterval) {
+        let bulletAction = SKAction.sequence([
+            SKAction.move(to: destination, duration: duration),
+            SKAction.wait(forDuration: 3.0 / 60.0),
+            SKAction.removeFromParent()
+        ])
+        bullet.run(bulletAction)
+        addChild(bullet)
+    }
+    
+    private func firePlayerBullets() {
+        let existingBullet = childNode(withName: ChildNodeName.playerBullet.rawValue)
+        if existingBullet != nil {
+            return
+        }
+
+        if let player = childNode(withName: ChildNodeName.player.rawValue) {
+            let bullet = makeBullet(ofType: .playerBullet)
+            bullet.position = CGPoint(
+                x: player.position.x,
+                y: player.position.y - player.frame.size.height / 2 + bullet.frame.size.height / 2
+            )
+            let bulletDestination = CGPoint(
+                x: player.position.x,
+                y: frame.size.height + bullet.frame.size.height / 2
+            )
+            fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
         }
     }
 }
