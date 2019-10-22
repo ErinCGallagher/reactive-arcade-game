@@ -123,8 +123,8 @@ extension GameScene {
     }
     
     private func setupEnemies() {
-        let enemiesPerRow = 6
-        let enemiesPerColumn = 6
+        let enemiesPerRow = 3
+        let enemiesPerColumn = 3
         let rowHeight: CGFloat = 32.0
         let columnWidth: CGFloat = 36.0
         let baseOrigin = CGPoint(x: size.width / 3, y: size.height / 2)
@@ -141,15 +141,8 @@ extension GameScene {
     }
     
     private func makeEnemy(for row: Int) -> SKNode {
-        let enemyTextures = [
-            SKTexture(imageNamed: "Invader\(row%3)_00.png"),
-            SKTexture(imageNamed: "Invader\(row%3)_01.png")
-        ]
-        
-//        let enemy = SKSpriteNode(texture: enemyTextures[0])
         let enemy = SKSpriteNode(imageNamed: "Invader\(row%3)_00.png")
         enemy.name = ChildNodeName.enemy.rawValue
-//        enemy.run(SKAction.repeatForever(SKAction.animate(with: enemyTextures, timePerFrame: enemyTimePerFrame)))
         enemy.physicsBody = SKPhysicsBody(rectangleOf: enemy.frame.size)
         if let enemyBody = enemy.physicsBody {
             enemyBody.isDynamic = true
@@ -254,7 +247,7 @@ extension GameScene: SKPhysicsContactDelegate {
             
         } else if nodeNames.contains(ChildNodeName.enemy.rawValue) && nodeNames.contains(ChildNodeName.playerBullet.rawValue) {
             // Player hit an enemy
-//            run(SKAction.playSoundFileNamed("InvaderHit.wav", waitForCompletion: false))
+            //            run(SKAction.playSoundFileNamed("InvaderHit.wav", waitForCompletion: false))
             bodyANode.removeFromParent()
             bodyBNode.removeFromParent()
             adjustScore(by: 100)
@@ -343,7 +336,7 @@ extension GameScene {
         }
     }
     
-    private func processEnemiesBullets() {
+private func processEnemiesBullets() {
         let existingBullet = childNode(withName: ChildNodeName.enemyBullet.rawValue)
         if existingBullet != nil {
             return
