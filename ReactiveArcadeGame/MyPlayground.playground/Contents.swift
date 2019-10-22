@@ -22,13 +22,15 @@ class GameScene: SKScene {
     var enemyDirection: EnemyDirection = .right
     let kMinEnemyBottomHeight: Float = 32.0
     
-    // HUD
+    // HUD: Heads Up Display (player's vitals and stats)
     var score: Int = 0
     var playerHealth: Float = 1.0
     var scoreLabel: SKLabelNode!
     var healthLabel: SKLabelNode!
     var gameEnded: Bool = false
     
+    // Method called by the system when the scene is presented.
+    // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
     override func didMove(to view: SKView) {
         setupBoard()
         setupArrowButtons()
@@ -37,8 +39,11 @@ class GameScene: SKScene {
         setupHud()
     }
     
+    // Method called by the system when a touch within the UiView is detected.
+    // Overrides how touches are handled in the game.
+    // If the touch is on the player node, fires a player bullet.
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for touch in touches{
+        for touch in touches {
             let location = touch.location(in: self)
             let node: SKNode = atPoint(location)
             if(node.name == ChildNodeName.board.rawValue) {
@@ -47,6 +52,8 @@ class GameScene: SKScene {
         }
     }
     
+    // Method called by the system once per frame.
+    // overrides how to handle the enemy, player and bullet nodes in the scene.
     override func update(_ currentTime: TimeInterval) {
         if gameEnded {
             return
@@ -57,6 +64,7 @@ class GameScene: SKScene {
         processPlayerMovement()
         processEnemiesMovement(for: currentTime)
         
+        // checks if the game is over once per frame
         if isGameOver() {
             endGame()
         }
@@ -66,6 +74,7 @@ class GameScene: SKScene {
 // MARK: - Setup functions
 
 extension GameScene {
+    // The different Node entities and their associates names.
     enum ChildNodeName: String {
         case board = "board"
         case player = "player"
@@ -74,6 +83,7 @@ extension GameScene {
         case enemyBullet = "enemyBullet"
     }
     
+    // Sets up the aracde board, physics, background colour, size and position.
     private func setupBoard() {
         physicsWorld.contactDelegate = self
         physicsBody = SKPhysicsBody(edgeLoopFrom: frame)
@@ -90,6 +100,8 @@ extension GameScene {
         addChild(board)
     }
     
+    // Sets up the right and left arrow buttons at the bottom of the screen.
+    // Delegates the left and right button click handling to [ButtonDelegate].
     private func setupArrowButtons() {
         let buttonWidth = Int(size.width/2)
         let buttonHeight = 76
@@ -106,6 +118,7 @@ extension GameScene {
         addChild(rightButton)
     }
     
+    // Creates the player nodeand places it at's it's starting position.
     private func setupPlayer() {
         let player = SKSpriteNode(imageNamed: "Player.png")
         player.name = ChildNodeName.player.rawValue
@@ -122,6 +135,7 @@ extension GameScene {
         addChild(player)
     }
     
+    // Creates a number of enemy nodes ([enemiesPerColumn] * [enemiesPerColumn]) and sets their starting positions.
     private func setupEnemies() {
         let enemiesPerRow = 3
         let enemiesPerColumn = 3
@@ -129,17 +143,20 @@ extension GameScene {
         let columnWidth: CGFloat = 36.0
         let baseOrigin = CGPoint(x: size.width / 3, y: size.height / 2)
         
+        // loops through the [enemiesPerRow] and [enemiesPerColumn] to add enemies at their correct position
         for row in 0..<enemiesPerRow {
             let enemyPositionY = CGFloat(row) * rowHeight + baseOrigin.y
             
             for col in 0..<enemiesPerColumn {
                 let enemy = makeEnemy(for: row)
                 enemy.position = CGPoint(x: CGFloat(col) * columnWidth + baseOrigin.x, y: enemyPositionY)
+                // adds the enemy to the scene
                 addChild(enemy)
             }
         }
     }
     
+    // Creates and returns  an eneymy node [SKNode] with its associated [physicsBody].
     private func makeEnemy(for row: Int) -> SKNode {
         let enemy = SKSpriteNode(imageNamed: "Invader\(row%3)_00.png")
         enemy.name = ChildNodeName.enemy.rawValue
@@ -155,11 +172,15 @@ extension GameScene {
         return enemy
     }
     
+    // Creates and returns a [SKNode] bullet of a given type [bulletType].
     private func makeBullet(ofType bulletType: ChildNodeName) -> SKNode {
+        //creates the SKSpriteNode
         let bulletSize = CGSize(width:4, height: 8)
         let bullet = SKSpriteNode(color: SKColor.green, size: bulletSize)
         bullet.name = bulletType.rawValue
         bullet.physicsBody = SKPhysicsBody(rectangleOf: bullet.frame.size)
+        
+        // assigns physics and a type to the bullet
         if let bulletBody = bullet.physicsBody {
             bulletBody.isDynamic = true
             bulletBody.affectedByGravity = false
@@ -181,6 +202,7 @@ extension GameScene {
         return bullet
     }
     
+    // Sets up the [scoreLabel] and[healthLabel] with their default state and adds them to the scene.
     private func setupHud() {
         scoreLabel = SKLabelNode(fontNamed: "Courier")
         scoreLabel.fontSize = 25
@@ -207,11 +229,17 @@ extension GameScene {
 // MARK: - SKPhysicsContactDelegate
 
 extension GameScene: SKPhysicsContactDelegate {
+    
+    // overriding how the collision between 2 physics entities is handled by the game.
     func didBegin(_ contact: SKPhysicsContact) {
         handle(contact)
     }
     
+    // Adjusts the players score or health depending on the type of bullet collision.
+    // If an enemy bullet collides with a player, the player's health is decreased.
+    // If a player bullet collides with an enemy, the player's score is increased.
     private func handle(_ contact: SKPhysicsContact) {
+        // seperates each attribute of [contact] into easy to access variables
         guard let bodyANode = contact.bodyA.node,
               let bodyANodeName = bodyANode.name,
               let bodyBNode = contact.bodyB.node,
@@ -230,11 +258,11 @@ extension GameScene: SKPhysicsContactDelegate {
             // Enemy bullet hit player
             adjustPlayerHealth(by: -0.334)
             
+            // Player's health is below min 0
             if playerHealth <= 0.0 {
                 bodyANode.removeFromParent()
                 bodyBNode.removeFromParent()
             } else {
-                // 3
                 if let player = childNode(withName: ChildNodeName.player.rawValue) {
                     player.alpha = CGFloat(playerHealth)
                     if bodyANode == player {
@@ -244,21 +272,22 @@ extension GameScene: SKPhysicsContactDelegate {
                     }
                 }
             }
-            
         } else if nodeNames.contains(ChildNodeName.enemy.rawValue) && nodeNames.contains(ChildNodeName.playerBullet.rawValue) {
             // Player hit an enemy
-            //            run(SKAction.playSoundFileNamed("InvaderHit.wav", waitForCompletion: false))
             bodyANode.removeFromParent()
             bodyBNode.removeFromParent()
             adjustScore(by: 100)
         }
     }
     
+    // Adjusts the socre by the given number of [points] and updates the [scoreLabel].
     private func adjustScore(by points: Int) {
         score += points
         scoreLabel.text = String(format: "Score: %04u", score)
     }
     
+    // Adjusts the player's health by [healthAdjustment] and updates the [healthLabel].
+    // if the resulting health is less than 0, sets the healthLabel to 0.
     private func adjustPlayerHealth(by healthAdjustment: Float) {
         playerHealth = max(playerHealth + healthAdjustment, 0)
         healthLabel.text = String(format: "Health: %.1f%%", playerHealth * 100.0)
@@ -268,12 +297,14 @@ extension GameScene: SKPhysicsContactDelegate {
 // MARK: - Update functions
 
 extension GameScene {
+    // Enemies moves left, then down, then right then down the repeat.
     enum EnemyDirection {
         case right
         case left
         case downThenRight
         case downThenLeft
         
+        // specifies the direction that proceeds the current one
         var nextDirection: EnemyDirection {
             switch self {
             case .right: return .downThenLeft
@@ -284,31 +315,39 @@ extension GameScene {
         }
     }
     
+    // Moves the player [playerJumpPerClick] spaces left or right depending on which button was tapped.
     private func processPlayerMovement() {
+        // only updates the players position if there is a player node and the left or right buttons have been tapped.
         if let player = childNode(withName: ChildNodeName.player.rawValue) as? SKSpriteNode,
             (leftButtonTapped > 0 || rightButtonTapped > 0) {
-            let playerJumpPerClick = 7
+            let playerJumpPerClick = 7 // moves 7 spaces per click
             let playerXPosition: CGFloat = player.position.x - CGFloat(leftButtonTapped * playerJumpPerClick) + CGFloat(rightButtonTapped * playerJumpPerClick)
             player.position = CGPoint(
                 x: playerXPosition,
                 y: player.position.y
             )
+            // resets the tap to count
             leftButtonTapped = 0
             rightButtonTapped = 0
         }
     }
     
+    // Moves the enemy nodes [jumpPerFrame] spaces in the current [enemyDirection].
+    // Only updates the enemy position [enemyTimePerFrame] times per frame.
     private func processEnemiesMovement(for currentTime: CFTimeInterval) {
+        // only updates the position if times passed since last update is greater than [enemyTimePerFrame].
         if (currentTime - enemyTimeLastFrame < enemyTimePerFrame) {
             return
         }
         
+        //updates time and direction of the current enemy move
         enemyTimeLastFrame = currentTime
         updateEnemyDirection()
         
         enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
-            let jumpPerFrame: CGFloat = 10.0
+            let jumpPerFrame: CGFloat = 10.0 // position moved per update
+            // updates the enemy node's position in the correct direction
             switch this.enemyDirection {
             case .right:
                 node.position = CGPoint(x: node.position.x + jumpPerFrame, y: node.position.y)
@@ -320,7 +359,10 @@ extension GameScene {
         }
     }
     
+    // Updates the direction the enemy nodes should be travelling.
+    // [enemyDirection.nextDirection] indicates what the next direction will be.
     private func updateEnemyDirection() {
+        // after a [downThenLeft] or [downThenRight] movement the direction can be immeditely updated to next.
         if [.downThenLeft, .downThenRight].contains(enemyDirection) {
             enemyDirection = enemyDirection.nextDirection
             return
@@ -328,6 +370,7 @@ extension GameScene {
         
         enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
+            // only update to the next direction when the enemies have reached the end of the screen.
             if (node.frame.minX <= 1.0 ||
                 node.frame.maxX >= node.scene!.size.width - 1.0) {
                 this.enemyDirection = this.enemyDirection.nextDirection
@@ -336,33 +379,43 @@ extension GameScene {
         }
     }
     
-private func processEnemiesBullets() {
+    // Selects an enemy at random and fires the bullet towards a final destination directly below it.
+    // Only fires a new enemy bullet if an existing one is not on the screen.
+    private func processEnemiesBullets() {
+        // If there is an existing enemy bullet currently on screen, do not fire a new one
         let existingBullet = childNode(withName: ChildNodeName.enemyBullet.rawValue)
         if existingBullet != nil {
             return
         }
         
+        // If there are no enemies, there are no bullets to be processed
         let allEnemies = self[ChildNodeName.enemy.rawValue]
         if allEnemies.isEmpty {
             return
         }
         
+        // selects a random enemy to shoot a bullet from
         let randomEnemyIndex = Int(arc4random_uniform(UInt32(allEnemies.count)))
         let randomEnemy = allEnemies[randomEnemyIndex]
         
+        // creates an enemy bullet
         let bullet = makeBullet(ofType: .enemyBullet)
         bullet.position = CGPoint(
             x: randomEnemy.position.x,
             y: randomEnemy.position.y - randomEnemy.frame.size.height / 2 + bullet.frame.size.height / 2
         )
+        
+        // sets the bullet destnation
         let bulletDestination = CGPoint(
             x: randomEnemy.position.x,
             y: -(bullet.frame.size.height / 2)
         )
         
+        // launches the bullet from the enemy itself towards the final destination
         fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
     }
     
+    // Adds the bullet to the scene and starts the action which moves it towards its given final destination [toDestination].
     private func fireBullet(bullet: SKNode, toDestination destination: CGPoint, withDuration duration: CFTimeInterval) {
         let bulletAction = SKAction.sequence([
             SKAction.move(to: destination, duration: duration),
@@ -373,41 +426,54 @@ private func processEnemiesBullets() {
         addChild(bullet)
     }
     
+    // Fires a bullet from the player's current position towards a final destination directly below it.
+    // Only fires a new player bullet if an existing one is not on the screen.
     private func firePlayerBullets() {
+        // if there is an existing player bullet currently on the screen, do not fire a new one
         let existingBullet = childNode(withName: ChildNodeName.playerBullet.rawValue)
         if existingBullet != nil {
             return
         }
         
         if let player = childNode(withName: ChildNodeName.player.rawValue) {
+            // creates a player bullet
             let bullet = makeBullet(ofType: .playerBullet)
             bullet.position = CGPoint(
                 x: player.position.x,
                 y: player.position.y - player.frame.size.height / 2 + bullet.frame.size.height / 2
             )
+            // sets the bullet destnation
             let bulletDestination = CGPoint(
                 x: player.position.x,
                 y: frame.size.height + bullet.frame.size.height / 2
             )
+            // launches the bullet from the player itself towards the final destination
             fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
         }
     }
     
+    // Returns true if the game is over, otherwise false.
     private func isGameOver() -> Bool {
         let enemy = childNode(withName: ChildNodeName.enemy.rawValue)
         let player = childNode(withName: ChildNodeName.player.rawValue)
-        
+    
         var enemyTooLow = false
         enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
+            // If the enemies have decended to close to the bottom of the scene, game is over
             if (Float(node.frame.minY) <= this.kMinEnemyBottomHeight)   {
                 enemyTooLow = true
                 stop.initialize(to: true)
             }
         }
+        // The game is over of:
+        // If there are no enemies left
+        // If the player has died
+        // If the enemies have got to the bottom of the screen
         return enemy == nil || enemyTooLow || player == nil
     }
     
+    // Changes the [scoreLabel] and [healthLabel] to indicate the game is over.
     func endGame() {
         gameEnded = true
         scoreLabel.text = ""
