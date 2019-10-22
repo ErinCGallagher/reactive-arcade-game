@@ -42,7 +42,7 @@ class GameScene: SKScene {
     
     // Method called by the system when a touch within the UiView is detected.
     // Overrides how touches are handled in the game.
-    // If the touch is on the player node, fires a player bullet.
+    // If the touch is on the board above the right and left buttons, it fires a player bullet.
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         for touch in touches {
