@@ -32,6 +32,7 @@ class GameScene: SKScene {
     // Method called by the system when the scene is presented.
     // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
     override func didMove(to view: SKView) {
+        super.didMove(to: view)
         setupBoard()
         setupArrowButtons()
         setupPlayer()
@@ -43,6 +44,7 @@ class GameScene: SKScene {
     // Overrides how touches are handled in the game.
     // If the touch is on the player node, fires a player bullet.
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
         for touch in touches {
             let location = touch.location(in: self)
             let node: SKNode = atPoint(location)
