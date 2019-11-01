@@ -4,3 +4,4 @@ xcuserdata/**/*
 !xcuserdata/**/xcschemes/*
 SKInvaders/SKInvaders.xcodeproj/xcuserdata/katiamaeda.xcuserdatad/xcdebugger/Breakpoints_v2.xcbkptlist
 MyPlayground.playground/timeline.xctimeline
+ReactiveArcadeGame/Pods
