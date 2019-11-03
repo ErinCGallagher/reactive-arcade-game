@@ -32,8 +32,8 @@ class GameScene: SKScene {
     // Observables
     let disposeBag = DisposeBag()
     let playerHealthSubject = PublishSubject<Float>()
-    let allEnemies = Variable<[SKNode]>([])
-    let enemyLowestPosition = Variable<Float>(640)
+    let allEnemies = BehaviorRelay<[SKNode]>(value: [])
+    let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
     
     // Method called by the system when the scene is presented.
     // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
@@ -92,22 +92,30 @@ extension GameScene {
             .disposed(by: disposeBag)
         
         var hasEnemies: Observable<Bool> {
-            return allEnemies.asObservable().map {
-                !$0.isEmpty
-            }
+            return allEnemies
+                .asObservable()
+                .map {
+                    !$0.isEmpty
+                }
+                .distinctUntilChanged()
         }
         
         var hasPlayerSubject: Observable<Bool> {
-            return playerHealthSubject.map {
-                $0 > 0
-            }
+            return playerHealthSubject
+                .map {
+                    $0 > 0
+                }
+                .distinctUntilChanged()
         }
         
         var enemiesWon: Observable<Bool> {
-            return enemyLowestPosition.asObservable().map { [weak self] position in
-                guard let this = self else { return false }
-                return position < this.kMinEnemyBottomHeight
-            }
+            return enemyLowestPosition
+                .asObservable()
+                .map { [weak self] position in
+                    guard let this = self else { return false }
+                    return position < this.kMinEnemyBottomHeight
+                }
+                .distinctUntilChanged()
         }
         
         // The game is over of:
@@ -118,6 +126,7 @@ extension GameScene {
             .skip(1)
             .subscribe(onNext: { [weak self] hasEnemies, hasPlayer, enemiesWon in
                 guard let this = self else { return }
+                print("hasEnemies \(hasEnemies), hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
                 if !hasPlayer || enemiesWon {
                     this.gameOver()
                 } else if !hasEnemies {
@@ -219,7 +228,9 @@ extension GameScene {
                 
                 // adds the enemy to the scene
                 enemiesBoard.addChild(enemy)
-                allEnemies.value.append(enemy)
+                var enemies = allEnemies.value
+                enemies.append(enemy)
+                allEnemies.accept(enemies)
             }
         }
         
@@ -350,7 +361,9 @@ extension GameScene: SKPhysicsContactDelegate {
         else {
             return
         }
-        allEnemies.value.remove(at: index)
+        var enemies = allEnemies.value
+        enemies.remove(at: index)
+        allEnemies.accept(enemies)
     }
     
     // Adjusts the player's health by [healthAdjustment] and updates the [healthLabel].
@@ -437,7 +450,7 @@ extension GameScene {
             case .downThenLeft, .downThenRight:
                 let newYPosition = node.position.y - jumpPerFrame
                 node.position = CGPoint(x: node.position.x, y: newYPosition)
-                this.enemyLowestPosition.value = Float(newYPosition + node.frame.minY)
+                this.enemyLowestPosition.accept(Float(newYPosition + node.frame.minY))
             }
         }
     }
