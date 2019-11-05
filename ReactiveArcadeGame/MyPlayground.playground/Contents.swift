@@ -20,7 +20,7 @@ class GameScene: SKScene {
     var enemyTimeLastFrame: CFTimeInterval = 0.0
     let enemyTimePerFrame: CFTimeInterval = 1.0
     var enemyDirection: EnemyDirection = .right
-    let kMinEnemyBottomHeight: Float = 32.0
+    let kMinEnemyBottomHeight: Float = 300.0
     
     // HUD: Heads Up Display (player's vitals and stats)
     var score: Int = 0
@@ -29,10 +29,17 @@ class GameScene: SKScene {
     var healthLabel: SKLabelNode!
     var gameEnded: Bool = false
     
+    // Observables
+    let disposeBag = DisposeBag()
+    let playerHealthSubject = PublishSubject<Float>()
+    let allEnemies = BehaviorRelay<[SKNode]>(value: [])
+    let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
+    
     // Method called by the system when the scene is presented.
     // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
     override func didMove(to view: SKView) {
         super.didMove(to: view)
+        setupObservables()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
@@ -65,11 +72,68 @@ class GameScene: SKScene {
         processEnemiesBullets()
         processPlayerMovement()
         processEnemiesMovement(for: currentTime)
+    }
+}
+
+// MARK: - Observable functions
+
+extension GameScene {
+    private func setupObservables() {
+        playerHealthSubject
+            .subscribe { playerHealth in
+                print("playerHealth \(playerHealth)")
+            }
+            .disposed(by: disposeBag)
         
-        // checks if the game is over once per frame
-        if isGameOver() {
-            endGame()
+        allEnemies.asObservable()
+            .subscribe(onNext: { enemies in
+                print("enemies \(enemies.count)")
+            })
+            .disposed(by: disposeBag)
+        
+        var hasEnemies: Observable<Bool> {
+            return allEnemies
+                .asObservable()
+                .map {
+                    !$0.isEmpty
+                }
+                .distinctUntilChanged()
         }
+        
+        var hasPlayerSubject: Observable<Bool> {
+            return playerHealthSubject
+                .map {
+                    $0 > 0
+                }
+                .distinctUntilChanged()
+        }
+        
+        var enemiesWon: Observable<Bool> {
+            return enemyLowestPosition
+                .asObservable()
+                .map { [weak self] position in
+                    guard let this = self else { return false }
+                    return position < this.kMinEnemyBottomHeight
+                }
+                .distinctUntilChanged()
+        }
+        
+        // The game is over of:
+        // If there are no enemies left
+        // If the player has died
+        // If the enemies have got to the bottom of the screen
+        Observable.combineLatest(hasEnemies, hasPlayerSubject, enemiesWon)
+            .skip(1)
+            .subscribe(onNext: { [weak self] hasEnemies, hasPlayer, enemiesWon in
+                guard let this = self else { return }
+                print("hasEnemies \(hasEnemies), hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
+                if !hasPlayer || enemiesWon {
+                    this.gameOver()
+                } else if !hasEnemies {
+                    this.playerWins()
+                }
+            })
+            .disposed(by: disposeBag)
     }
 }
 
@@ -80,6 +144,7 @@ extension GameScene {
     enum ChildNodeName: String {
         case board = "board"
         case player = "player"
+        case enemiesBoard = "enemiesBoard"
         case enemy = "enemy"
         case playerBullet = "playerBullet"
         case enemyBullet = "enemyBullet"
@@ -135,27 +200,41 @@ extension GameScene {
         }
         player.position = CGPoint(x: size.width / 2.0, y: playerSize.height / 2.0)
         addChild(player)
+        playerHealthSubject.onNext(playerHealth)
     }
     
-    // Creates a number of enemy nodes ([enemiesPerColumn] * [enemiesPerColumn]) and sets their starting positions.
+    // Creates a number of enemy nodes ([numberOfRows] * [numberOfColumns]) and sets their starting positions.
     private func setupEnemies() {
-        let enemiesPerRow = 3
-        let enemiesPerColumn = 3
+        let numberOfColumns = 4
+        let numberOfRows = 4
         let rowHeight: CGFloat = 32.0
         let columnWidth: CGFloat = 36.0
-        let baseOrigin = CGPoint(x: size.width / 3, y: size.height / 2)
+
+        let enemiesBoardSize = CGSize(
+            width: CGFloat(numberOfColumns) * columnWidth,
+            height: CGFloat(numberOfRows) * rowHeight
+        )
+        let enemiesBoard = SKSpriteNode(color: SKColor.clear, size: enemiesBoardSize)
+        enemiesBoard.position = CGPoint(x: size.width / 3, y: size.height / 2)
+        enemiesBoard.name = ChildNodeName.enemiesBoard.rawValue
+        let baseOrigin = CGPoint(x: enemiesBoardSize.width / 2, y: enemiesBoardSize.height / 2)
         
-        // loops through the [enemiesPerRow] and [enemiesPerColumn] to add enemies at their correct position
-        for row in 0..<enemiesPerRow {
-            let enemyPositionY = CGFloat(row) * rowHeight + baseOrigin.y
-            
-            for col in 0..<enemiesPerColumn {
+        // loops through the [numberOfColumns] and [numberOfRows] to add enemies at their correct position
+        for row in 0..<numberOfRows {
+            for col in 0..<numberOfColumns {
                 let enemy = makeEnemy(for: row)
-                enemy.position = CGPoint(x: CGFloat(col) * columnWidth + baseOrigin.x, y: enemyPositionY)
+                enemy.position = CGPoint(x: CGFloat(col) * columnWidth - baseOrigin.x,
+                                         y: CGFloat(row) * rowHeight - baseOrigin.y)
+                
                 // adds the enemy to the scene
-                addChild(enemy)
+                enemiesBoard.addChild(enemy)
+                var enemies = allEnemies.value
+                enemies.append(enemy)
+                allEnemies.accept(enemies)
             }
         }
+        
+        addChild(enemiesBoard)
     }
     
     // Creates and returns  an eneymy node [SKNode] with its associated [physicsBody].
@@ -197,7 +276,7 @@ extension GameScene {
                 bullet.color = SKColor.magenta
                 bulletBody.categoryBitMask = kEnemyBulletCategory
                 bulletBody.contactTestBitMask = kPlayerCategory
-            case .board, .player, .enemy:
+            case .board, .player, .enemy, .enemiesBoard:
                 break
             }
         }
@@ -258,41 +337,54 @@ extension GameScene: SKPhysicsContactDelegate {
         let nodeNames = [bodyANodeName, bodyBNodeName]
         if nodeNames.contains(ChildNodeName.player.rawValue) && nodeNames.contains(ChildNodeName.enemyBullet.rawValue) {
             // Enemy bullet hit player
-            adjustPlayerHealth(by: -0.334)
-            
-            // Player's health is below min 0
-            if playerHealth <= 0.0 {
-                bodyANode.removeFromParent()
-                bodyBNode.removeFromParent()
-            } else {
-                if let player = childNode(withName: ChildNodeName.player.rawValue) {
-                    player.alpha = CGFloat(playerHealth)
-                    if bodyANode == player {
-                        bodyBNode.removeFromParent()
-                    } else {
-                        bodyANode.removeFromParent()
-                    }
-                }
-            }
+            enemyHitPlayer(contact)
         } else if nodeNames.contains(ChildNodeName.enemy.rawValue) && nodeNames.contains(ChildNodeName.playerBullet.rawValue) {
             // Player hit an enemy
-            bodyANode.removeFromParent()
-            bodyBNode.removeFromParent()
-            adjustScore(by: 100)
+            killedEnemy(contact)
         }
     }
     
-    // Adjusts the socre by the given number of [points] and updates the [scoreLabel].
-    private func adjustScore(by points: Int) {
-        score += points
+    // Update score and Observable allEnemies
+    private func killedEnemy(_ contact: SKPhysicsContact) {
+        score += 100
         scoreLabel.text = String(format: "Score: %04u", score)
+        
+        guard let bodyANode = contact.bodyA.node,
+              let bodyBNode = contact.bodyB.node
+        else {
+            return
+        }
+        
+        bodyANode.removeFromParent()
+        bodyBNode.removeFromParent()
+        guard let index = allEnemies.value.firstIndex(of: bodyANode)
+        else {
+            return
+        }
+        var enemies = allEnemies.value
+        enemies.remove(at: index)
+        allEnemies.accept(enemies)
     }
     
     // Adjusts the player's health by [healthAdjustment] and updates the [healthLabel].
     // if the resulting health is less than 0, sets the healthLabel to 0.
-    private func adjustPlayerHealth(by healthAdjustment: Float) {
-        playerHealth = max(playerHealth + healthAdjustment, 0)
+    private func enemyHitPlayer(_ contact: SKPhysicsContact) {
+        playerHealth = max(playerHealth - 0.334, 0)
         healthLabel.text = String(format: "Health: %.1f%%", playerHealth * 100.0)
+        
+        guard let _ = contact.bodyA.node,
+              let bulletNode = contact.bodyB.node
+        else {
+            return
+        }
+        
+        // Player's health is below min 0
+        playerHealthSubject.onNext(playerHealth)
+        bulletNode.removeFromParent()
+        
+        if let player = childNode(withName: ChildNodeName.player.rawValue) {
+            player.alpha = CGFloat(playerHealth)
+        }
     }
 }
 
@@ -346,7 +438,7 @@ extension GameScene {
         enemyTimeLastFrame = currentTime
         updateEnemyDirection()
         
-        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
+        enumerateChildNodes(withName: ChildNodeName.enemiesBoard.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
             let jumpPerFrame: CGFloat = 10.0 // position moved per update
             // updates the enemy node's position in the correct direction
@@ -356,7 +448,9 @@ extension GameScene {
             case .left:
                 node.position = CGPoint(x: node.position.x - jumpPerFrame, y: node.position.y)
             case .downThenLeft, .downThenRight:
-                node.position = CGPoint(x: node.position.x, y: node.position.y - jumpPerFrame)
+                let newYPosition = node.position.y - jumpPerFrame
+                node.position = CGPoint(x: node.position.x, y: newYPosition)
+                this.enemyLowestPosition.accept(Float(newYPosition + node.frame.minY))
             }
         }
     }
@@ -370,10 +464,10 @@ extension GameScene {
             return
         }
         
-        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
+        enumerateChildNodes(withName: ChildNodeName.enemiesBoard.rawValue) { [weak self] node, stop in
             guard let this = self else { return }
             // only update to the next direction when the enemies have reached the end of the screen.
-            if (node.frame.minX <= 1.0 ||
+            if (node.frame.minX <= 30.0 ||
                 node.frame.maxX >= node.scene!.size.width - 1.0) {
                 this.enemyDirection = this.enemyDirection.nextDirection
                 stop.initialize(to: true)
@@ -391,7 +485,8 @@ extension GameScene {
         }
         
         // If there are no enemies, there are no bullets to be processed
-        let allEnemies = self[ChildNodeName.enemy.rawValue]
+        let enemiesBoard = self[ChildNodeName.enemiesBoard.rawValue][0]
+        let allEnemies = enemiesBoard[ChildNodeName.enemy.rawValue]
         if allEnemies.isEmpty {
             return
         }
@@ -403,18 +498,18 @@ extension GameScene {
         // creates an enemy bullet
         let bullet = makeBullet(ofType: .enemyBullet)
         bullet.position = CGPoint(
-            x: randomEnemy.position.x,
-            y: randomEnemy.position.y - randomEnemy.frame.size.height / 2 + bullet.frame.size.height / 2
+            x: enemiesBoard.position.x + randomEnemy.position.x,
+            y: enemiesBoard.position.y + randomEnemy.position.y - randomEnemy.frame.size.height / 2 + bullet.frame.size.height / 2
         )
         
         // sets the bullet destnation
         let bulletDestination = CGPoint(
-            x: randomEnemy.position.x,
+            x: enemiesBoard.position.x + randomEnemy.position.x,
             y: -(bullet.frame.size.height / 2)
         )
         
         // launches the bullet from the enemy itself towards the final destination
-        fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
+        fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.5)
     }
     
     // Adds the bullet to the scene and starts the action which moves it towards its given final destination [toDestination].
@@ -450,36 +545,25 @@ extension GameScene {
                 y: frame.size.height + bullet.frame.size.height / 2
             )
             // launches the bullet from the player itself towards the final destination
-            fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.0)
+            fireBullet(bullet: bullet, toDestination: bulletDestination, withDuration: 1.5)
         }
-    }
-    
-    // Returns true if the game is over, otherwise false.
-    private func isGameOver() -> Bool {
-        let enemy = childNode(withName: ChildNodeName.enemy.rawValue)
-        let player = childNode(withName: ChildNodeName.player.rawValue)
-    
-        var enemyTooLow = false
-        enumerateChildNodes(withName: ChildNodeName.enemy.rawValue) { [weak self] node, stop in
-            guard let this = self else { return }
-            // If the enemies have decended to close to the bottom of the scene, game is over
-            if (Float(node.frame.minY) <= this.kMinEnemyBottomHeight)   {
-                enemyTooLow = true
-                stop.initialize(to: true)
-            }
-        }
-        // The game is over of:
-        // If there are no enemies left
-        // If the player has died
-        // If the enemies have got to the bottom of the screen
-        return enemy == nil || enemyTooLow || player == nil
     }
     
     // Changes the [scoreLabel] and [healthLabel] to indicate the game is over.
-    func endGame() {
+    func gameOver() {
         gameEnded = true
         scoreLabel.text = ""
         healthLabel.text = "Game Over"
+        
+        if let player = childNode(withName: ChildNodeName.player.rawValue) {
+            player.removeFromParent()
+        }
+    }
+    
+    func playerWins() {
+        gameEnded = true
+        scoreLabel.text = "You win"
+        healthLabel.text = ""
     }
 }
 
@@ -494,10 +578,8 @@ extension GameScene: ButtonDelegate {
     internal func buttonClicked(sender: Button) {
         switch sender.name {
         case ControlButton.left.rawValue:
-            print("left button ")
             leftButtonTapped += 1
         case ControlButton.right.rawValue:
-            print("right button ")
             rightButtonTapped += 1
         default: break
         }
