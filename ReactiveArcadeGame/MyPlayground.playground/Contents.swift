@@ -53,20 +53,19 @@ extension GameScene {
             })
             .disposed(by: disposeBag)
         
-        var hasEnemies: Observable<Bool> {
-            return allEnemies
-                .asObservable()
-                .map {
-                    !$0.isEmpty
-                }
-                .distinctUntilChanged()
-        }
+        allEnemies
+            .skip(1)
+            .asObservable()
+            .map { $0.isEmpty }
+            .filter { $0 == true }
+            .subscribe(onNext: { [weak self] _ in
+                self?.playerWins()
+            })
+            .disposed(by: disposeBag)
         
         var hasPlayerSubject: Observable<Bool> {
             return playerHealthSubject
-                .map {
-                    $0 > 0
-                }
+                .map { $0 > 0 }
                 .distinctUntilChanged()
         }
         
@@ -84,15 +83,13 @@ extension GameScene {
         // If there are no enemies left
         // If the player has died
         // If the enemies have got to the bottom of the screen
-        Observable.combineLatest(hasEnemies, hasPlayerSubject, enemiesWon)
+        Observable.combineLatest(hasPlayerSubject, enemiesWon)
             .skip(1)
-            .subscribe(onNext: { [weak self] hasEnemies, hasPlayer, enemiesWon in
+            .subscribe(onNext: { [weak self] hasPlayer, enemiesWon in
                 guard let this = self else { return }
-                print("hasEnemies \(hasEnemies), hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
+                print("hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
                 if !hasPlayer || enemiesWon {
                     this.gameOver()
-                } else if !hasEnemies {
-                    this.playerWins()
                 }
             })
             .disposed(by: disposeBag)
