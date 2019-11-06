@@ -41,61 +41,7 @@ class GameScene: SKScene {
 */
 extension GameScene {
     private func setupObservables() {
-        playerHealthSubject
-            .subscribe { playerHealth in
-                print("playerHealth \(playerHealth)")
-            }
-            .disposed(by: disposeBag)
         
-        allEnemies.asObservable()
-            .subscribe(onNext: { enemies in
-                print("enemies \(enemies.count)")
-            })
-            .disposed(by: disposeBag)
-        
-        var hasEnemies: Observable<Bool> {
-            return allEnemies
-                .asObservable()
-                .map {
-                    !$0.isEmpty
-                }
-                .distinctUntilChanged()
-        }
-        
-        var hasPlayerSubject: Observable<Bool> {
-            return playerHealthSubject
-                .map {
-                    $0 > 0
-                }
-                .distinctUntilChanged()
-        }
-        
-        var enemiesWon: Observable<Bool> {
-            return enemyLowestPosition
-                .asObservable()
-                .map { [weak self] position in
-                    guard let this = self else { return false }
-                    return position < this.kMinEnemyBottomHeight
-                }
-                .distinctUntilChanged()
-        }
-        
-        // The game is over of:
-        // If there are no enemies left
-        // If the player has died
-        // If the enemies have got to the bottom of the screen
-        Observable.combineLatest(hasEnemies, hasPlayerSubject, enemiesWon)
-            .skip(1)
-            .subscribe(onNext: { [weak self] hasEnemies, hasPlayer, enemiesWon in
-                guard let this = self else { return }
-                print("hasEnemies \(hasEnemies), hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
-                if !hasPlayer || enemiesWon {
-                    this.gameOver()
-                } else if !hasEnemies {
-                    this.playerWins()
-                }
-            })
-            .disposed(by: disposeBag)
     }
 }
 
