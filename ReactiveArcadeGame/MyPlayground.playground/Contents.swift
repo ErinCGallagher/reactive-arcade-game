@@ -34,6 +34,7 @@ class GameScene: SKScene {
     let playerHealthSubject = PublishSubject<Float>()
     let allEnemies = BehaviorRelay<[SKNode]>(value: [])
     let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
+    let userClickSubject = PublishSubject<UITouch>()
 }
 
 /*:
@@ -94,6 +95,28 @@ extension GameScene {
             })
             .disposed(by: disposeBag)
     }
+    
+    // Helper function that returns a [SKNode] given a [UITouch] object.
+    private func getNodeAtTouchLocation(_ touch: UITouch) -> SKNode {
+        let location = touch.location(in: self)
+        let node: SKNode = atPoint(location)
+        return node
+    }
+    
+    // TASK #1
+    // Set up an observer which reacts to player click events using [userClickSubject] Observable
+    // Filter for click events which were made on the board, not the left or right buttons
+    // Peform the [firePlayerBullets] action whena click is emitted.
+    // Hint: [self.getNodeAtTouchLocation()] returns the location of a touch as a [SKNode]
+    // Hint: [ChildNodeName.board.rawValue] is the name of the board node
+    private func setupFireBulletsObserver() {
+        userClickSubject
+            .asObservable()
+            .filter { self.getNodeAtTouchLocation($0).name == ChildNodeName.board.rawValue }
+            .subscribe(onNext: { _ in
+                self.firePlayerBullets()
+            })
+    }
 }
 
 /*:
@@ -108,6 +131,7 @@ extension GameScene {
     override public func didMove(to view: SKView) {
         super.didMove(to: view)
         setupObservables()
+        setupFireBulletsObserver()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
@@ -121,11 +145,7 @@ extension GameScene {
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         for touch in touches {
-            let location = touch.location(in: self)
-            let node: SKNode = atPoint(location)
-            if(node.name == ChildNodeName.board.rawValue) {
-                firePlayerBullets()
-            }
+            userClickSubject.onNext(touch)
         }
     }
     
