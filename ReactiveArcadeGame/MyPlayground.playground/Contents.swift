@@ -7,36 +7,121 @@ import RxCocoa
 
 class GameScene: SKScene {
     var enemyDirection: EnemyDirection = .right
+    let kMinEnemyBottomHeight: Float = 300.0
     
     // Observables
     let disposeBag = DisposeBag()
     let playerHealthSubject = PublishSubject<Float>()
     let allEnemies = BehaviorRelay<[SKNode]>(value: [])
     let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
+    let userClickSubject = PublishSubject<UITouch>()
 }
 
 /*:
- ## Observable functions
- 1. Player wins: there are no more enemies
- 2. Game over: Player Health is equal or below 0
- 3. Game over: Enemies get to the bottom of the screen
+ # Observable functions
+ * Workshop Task #1: setUpFireBulletsObserver()
+ * Workshop Task #2: setUpGameOverObserver()
+ * Workshop Task #3: setUpPlayerWinsObserver()
 */
 extension GameScene {
-    private func setupObservables() {
-        // Use allEnemies to check if the player winned
+    
+    // Helper function that returns a [SKNode] given a [UITouch] object.
+    private func getNodeAtTouchLocation(_ touch: UITouch) -> SKNode {
+        let location = touch.location(in: self)
+        let node: SKNode = atPoint(location)
+        return node
+    }
+    
+    // TASK #1
+    // Set up an observer which reacts to player click events using [userClickSubject] PublishSubject
+    // Filter for click events which were made on the board, not the left or right buttons
+    // Peform the [firePlayerBullets] action whena click is emitted.
+    // Hint: [self.getNodeAtTouchLocation()] returns the location of a touch as a [SKNode]
+    // Hint: [ChildNodeName.board.rawValue] is the name of the board node
+    private func setUpFireBulletsObserver() {
+        userClickSubject
+            .asObservable()
+            .filter { self.getNodeAtTouchLocation($0).name == ChildNodeName.board.rawValue }
+            .subscribe(onNext: { _ in
+                self.firePlayerBullets()
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    
+    
+    // TASK #2
+    // Sets up the required Observables and Observers to detect when the game is over.
+    private func setUpGameOverObserver() {
+        // emits true when the enemies hve reached the bottom of the screen
+        // This indicates that the enemies have "Invaded"
+        var enemiesInvaded: Observable<Bool> {
+            return enemyLowestPosition
+                .asObservable()
+                .map { [weak self] position in
+                    guard let this = self else { return false }
+                    return position < this.kMinEnemyBottomHeight
+                }
+                .distinctUntilChanged()
+        }
         
+        // TASK #2 A
+        // Set up an observable which emits True when the player's health is above 0
+        // and otherwise emits false
+        var playerStatus: Observable<Bool> {
+            return playerHealthSubject
+                .map { $0 > 0 }
+        }
         
+        // TASK #2 B
+        // Set up an observer which detects when the game is over.
+        // The game is over if either:
+        //   1) The player has died
+        //   2) The enemies have invaded
+        // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
+        Observable.combineLatest(playerStatus, enemiesInvaded)
+            .skip(1)
+            .subscribe(onNext: { [weak self] playerStatus, enemiesInvaded in
+                guard let this = self else { return }
+                print("Player won \(playerStatus), Enemies Won \(enemiesInvaded)")
+                if !playerStatus || enemiesInvaded {
+                    this.gameOver()
+                }
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    // Task # 3
+    // Set up an observer which detects and reacts when the player wins the game.
+    // The player wins when there are no enemies remaining
+    // Perform the [playerWins()] action when the observable emits
+    // Hint: Use [allEnemies] Subject to detect when no enemies are remaining
+    // Hint: Chain the [map] and [filter] operators
+    private func setUpPlayerWinsObserver() {
+        allEnemies
+            .skip(1)
+            .asObservable()
+            .map { $0.isEmpty }
+            .filter { $0 == true }
+            .subscribe(onNext: { [weak self] _ in
+                self?.playerWins()
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    // Logs player Health and number of enemies to the console while the game is running.
+    private func setupConsoleLoggingObservables() {
+        playerHealthSubject
+            .subscribe { playerHealth in
+                print("playerHealth \(playerHealth)")
+            }
+            .disposed(by: disposeBag)
         
-        
-        // Use playerHealthSubject to check if the player lost
-        
-        
-        
-        
-        // Use enemyLowestPosition to check if the player lost
-        
-        
-        
+        allEnemies.asObservable()
+            .subscribe(onNext: { enemies in
+                print("enemies \(enemies.count)")
+            })
+            .disposed(by: disposeBag)
     }
 }
 
@@ -51,7 +136,10 @@ extension GameScene {
     // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
     override public func didMove(to view: SKView) {
         super.didMove(to: view)
-        setupObservables()
+        setupConsoleLoggingObservables()
+        setUpFireBulletsObserver()
+        setUpGameOverObserver()
+        setUpPlayerWinsObserver()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
@@ -65,11 +153,7 @@ extension GameScene {
     override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         for touch in touches {
-            let location = touch.location(in: self)
-            let node: SKNode = atPoint(location)
-            if(node.name == ChildNodeName.board.rawValue) {
-                firePlayerBullets()
-            }
+            userClickSubject.onNext(touch)
         }
     }
     
@@ -573,7 +657,6 @@ var rightButtonTapped: Int = 0
 // Enemies
 var enemyTimeLastFrame: CFTimeInterval = 0.0
 let enemyTimePerFrame: CFTimeInterval = 1.0
-let kMinEnemyBottomHeight: Float = 300.0
 
 // HUD: Heads Up Display (player's vitals and stats)
 var score: Int = 0
