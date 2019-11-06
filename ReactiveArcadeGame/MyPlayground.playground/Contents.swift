@@ -34,49 +34,11 @@ class GameScene: SKScene {
     let playerHealthSubject = PublishSubject<Float>()
     let allEnemies = BehaviorRelay<[SKNode]>(value: [])
     let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
-    
-    // Method called by the system when the scene is presented.
-    // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
-    override func didMove(to view: SKView) {
-        super.didMove(to: view)
-        setupObservables()
-        setupBoard()
-        setupArrowButtons()
-        setupPlayer()
-        setupEnemies()
-        setupHud()
-    }
-    
-    // Method called by the system when a touch within the UiView is detected.
-    // Overrides how touches are handled in the game.
-    // If the touch is on the board above the right and left buttons, it fires a player bullet.
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-        for touch in touches {
-            let location = touch.location(in: self)
-            let node: SKNode = atPoint(location)
-            if(node.name == ChildNodeName.board.rawValue) {
-                firePlayerBullets()
-            }
-        }
-    }
-    
-    // Method called by the system once per frame.
-    // overrides how to handle the enemy, player and bullet nodes in the scene.
-    override func update(_ currentTime: TimeInterval) {
-        if gameEnded {
-            return
-        }
-        
-        // Called before each frame is rendered
-        processEnemiesBullets()
-        processPlayerMovement()
-        processEnemiesMovement(for: currentTime)
-    }
 }
 
-// MARK: - Observable functions
-
+/*:
+ # Observable functions
+*/
 extension GameScene {
     private func setupObservables() {
         playerHealthSubject
@@ -137,8 +99,63 @@ extension GameScene {
     }
 }
 
-// MARK: - Setup functions
+/*:
+ # Game SKScene
+ * didMove()
+ * touchesBegan()
+ * update()
+*/
+extension GameScene {
+    // Method called by the system when the scene is presented.
+    // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
+    override public func didMove(to view: SKView) {
+        super.didMove(to: view)
+        setupObservables()
+        setupBoard()
+        setupArrowButtons()
+        setupPlayer()
+        setupEnemies()
+        setupHud()
+    }
+    
+    // Method called by the system when a touch within the UiView is detected.
+    // Overrides how touches are handled in the game.
+    // If the touch is on the board above the right and left buttons, it fires a player bullet.
+    override public func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        for touch in touches {
+            let location = touch.location(in: self)
+            let node: SKNode = atPoint(location)
+            if(node.name == ChildNodeName.board.rawValue) {
+                firePlayerBullets()
+            }
+        }
+    }
+    
+    // Method called by the system once per frame.
+    // overrides how to handle the enemy, player and bullet nodes in the scene.
+    override public func update(_ currentTime: TimeInterval) {
+        if gameEnded {
+            return
+        }
+        
+        // Called before each frame is rendered
+        processEnemiesBullets()
+        processPlayerMovement()
+        processEnemiesMovement(for: currentTime)
+    }
+}
 
+/*:
+ # Game Setup
+ * setupBoard()
+ * setupArrowButtons()
+ * setupPlayer()
+ * setupEnemies()
+ * makeEnemy()
+ * makeBullet()
+ * setupHud()
+*/
 extension GameScene {
     // The different Node entities and their associates names.
     enum ChildNodeName: String {
@@ -307,12 +324,15 @@ extension GameScene {
     }
 }
 
-// MARK: - SKPhysicsContactDelegate
-
+/*:
+ # Game Physic - SKPhysicsContactDelegate
+ * killedEnemy()
+ * enemyHitPlayer()
+*/
 extension GameScene: SKPhysicsContactDelegate {
     
     // overriding how the collision between 2 physics entities is handled by the game.
-    func didBegin(_ contact: SKPhysicsContact) {
+    public func didBegin(_ contact: SKPhysicsContact) {
         handle(contact)
     }
     
@@ -388,8 +408,17 @@ extension GameScene: SKPhysicsContactDelegate {
     }
 }
 
-// MARK: - Update functions
-
+/*:
+ # Update functions
+ * processPlayerMovement()
+ * processEnemiesMovement()
+ * updateEnemyDirection()
+ * processEnemiesBullets()
+ * fireBullet()
+ * firePlayerBullets()
+ * gameOver()
+ * playerWins()
+*/
 extension GameScene {
     // Enemies moves left, then down, then right then down the repeat.
     enum EnemyDirection {
@@ -567,15 +596,16 @@ extension GameScene {
     }
 }
 
-// MARK: - ButtonDelegate
-
+/*:
+ # Game Buttons - ButtonDelegate
+*/
 extension GameScene: ButtonDelegate {
     enum ControlButton: String {
         case left = "LeftButton"
         case right = "RightButton"
     }
     
-    internal func buttonClicked(sender: Button) {
+    public func buttonClicked(sender: Button) {
         switch sender.name {
         case ControlButton.left.rawValue:
             leftButtonTapped += 1
