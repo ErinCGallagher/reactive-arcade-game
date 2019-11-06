@@ -54,6 +54,7 @@ extension GameScene {
             })
             .disposed(by: disposeBag)
         
+        // Observes the stream of enemies and calls [playerWins()] when none are remaining
         allEnemies
             .skip(1)
             .asObservable()
@@ -61,37 +62,6 @@ extension GameScene {
             .filter { $0 == true }
             .subscribe(onNext: { [weak self] _ in
                 self?.playerWins()
-            })
-            .disposed(by: disposeBag)
-        
-        var hasPlayerSubject: Observable<Bool> {
-            return playerHealthSubject
-                .map { $0 > 0 }
-                .distinctUntilChanged()
-        }
-        
-        var enemiesWon: Observable<Bool> {
-            return enemyLowestPosition
-                .asObservable()
-                .map { [weak self] position in
-                    guard let this = self else { return false }
-                    return position < this.kMinEnemyBottomHeight
-                }
-                .distinctUntilChanged()
-        }
-        
-        // The game is over of:
-        // If there are no enemies left
-        // If the player has died
-        // If the enemies have got to the bottom of the screen
-        Observable.combineLatest(hasPlayerSubject, enemiesWon)
-            .skip(1)
-            .subscribe(onNext: { [weak self] hasPlayer, enemiesWon in
-                guard let this = self else { return }
-                print("hasPlayer \(hasPlayer), enemiesWon \(enemiesWon)")
-                if !hasPlayer || enemiesWon {
-                    this.gameOver()
-                }
             })
             .disposed(by: disposeBag)
     }
@@ -104,18 +74,60 @@ extension GameScene {
     }
     
     // TASK #1
-    // Set up an observer which reacts to player click events using [userClickSubject] Observable
+    // Set up an observer which reacts to player click events using [userClickSubject] PublishSubject
     // Filter for click events which were made on the board, not the left or right buttons
     // Peform the [firePlayerBullets] action whena click is emitted.
     // Hint: [self.getNodeAtTouchLocation()] returns the location of a touch as a [SKNode]
     // Hint: [ChildNodeName.board.rawValue] is the name of the board node
-    private func setupFireBulletsObserver() {
+    private func setUpFireBulletsObserver() {
         userClickSubject
             .asObservable()
             .filter { self.getNodeAtTouchLocation($0).name == ChildNodeName.board.rawValue }
             .subscribe(onNext: { _ in
                 self.firePlayerBullets()
             })
+    }
+    
+    
+    
+    // Sets up the required Observables and Observers to detect when the game is over.
+    private func setUpGameOverObserver() {
+        // emits true when the enemies hve reached the bottom of the screen
+        // This indicates that the enemies have "Invaded"
+        var enemyInvasion: Observable<Bool> {
+            return enemyLowestPosition
+                .asObservable()
+                .map { [weak self] position in
+                    guard let this = self else { return false }
+                    return position < this.kMinEnemyBottomHeight
+                }
+                .distinctUntilChanged()
+        }
+        
+        // TASK #2 A
+        // Set up an observable which emits True when the player's health is above 0
+        // and otherwise emits false
+        var playerStatus: Observable<Bool> {
+            return playerHealthSubject
+                .map { $0 > 0 }
+        }
+        
+        // TASK #2 B
+        // Set up an observer which detects when the game is over.
+        // The game is over if either:
+        //   1) The player has died
+        //   2) The aliens have invaded
+        // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
+        Observable.combineLatest(playerStatus, enemyInvasion)
+            .skip(1)
+            .subscribe(onNext: { [weak self] playerStatus, enemyInvasion in
+                guard let this = self else { return }
+                print("player won \(playerStatus), invaders Won \(enemyInvasion)")
+                if !playerStatus || enemyInvasion {
+                    this.gameOver()
+                }
+            })
+            .disposed(by: disposeBag)
     }
 }
 
@@ -131,7 +143,7 @@ extension GameScene {
     override public func didMove(to view: SKView) {
         super.didMove(to: view)
         setupObservables()
-        setupFireBulletsObserver()
+        setUpFireBulletsObserver()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
