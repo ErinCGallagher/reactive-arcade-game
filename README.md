@@ -19,14 +19,15 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 2. clone or download this repository
     - Look for the green <i> Clone or Download</i> button at the top right of the screen
     
-3. Download & install the required pods
+3. Download & install the required pods (libraries) for RxSwift & RxCocoa
     
     i)  open the terminal
     
     ii) navigate to <code>ReactiveArcadeGame</code> Folder
     
     ii) run the following command in the terminal: <code> pod install </code>
-    - note: This step may not be neccessary
+    
+    iii) run the following command in the terminal: <code> pod update </code>
     
     
 ### How to Open the Project?
