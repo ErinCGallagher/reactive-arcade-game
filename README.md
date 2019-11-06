@@ -14,7 +14,7 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 
 ## Branching Structure
 
-### Master
+### master
 - Default Bracnch
 - branch with worklshop tasks 1 - 3 not completed, find <code> // TODO: </code> in the code
 - Use this branch as a starting point when working through the workshop
@@ -46,7 +46,7 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
    
 2. From the left panel, select the <code>MyPlayground</Code> file
 
-### Common Errors
+## Common Errors
 
 1. Missing RxSwift & RxCocoa
 
