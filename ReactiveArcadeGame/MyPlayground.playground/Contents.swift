@@ -6,28 +6,7 @@ import RxSwift
 import RxCocoa
 
 class GameScene: SKScene {
-    let kBoardCategory: UInt32 = 0x1 << 0
-    let kPlayerCategory: UInt32 = 0x1 << 1
-    let kEnemyCategory: UInt32 = 0x1 << 2
-    let kPlayerBulletCategory: UInt32 = 0x1 << 3
-    let kEnemyBulletCategory: UInt32 = 0x1 << 4
-    
-    // Control buttons
-    var leftButtonTapped: Int = 0
-    var rightButtonTapped: Int = 0
-    
-    // Enemies
-    var enemyTimeLastFrame: CFTimeInterval = 0.0
-    let enemyTimePerFrame: CFTimeInterval = 1.0
     var enemyDirection: EnemyDirection = .right
-    let kMinEnemyBottomHeight: Float = 300.0
-    
-    // HUD: Heads Up Display (player's vitals and stats)
-    var score: Int = 0
-    var playerHealth: Float = 1.0
-    var scoreLabel: SKLabelNode!
-    var healthLabel: SKLabelNode!
-    var gameEnded: Bool = false
     
     // Observables
     let disposeBag = DisposeBag()
@@ -37,7 +16,10 @@ class GameScene: SKScene {
 }
 
 /*:
- # Observable functions
+ ## Observable functions
+ 1. Player wins: there are no more enemies
+ 2. Game over: Player Health is equal or below 0
+ 3. Game over: Enemies get to the bottom of the screen
 */
 extension GameScene {
     private func setupObservables() {
@@ -46,7 +28,7 @@ extension GameScene {
 }
 
 /*:
- # Game SKScene
+ ## Game SKScene
  * didMove()
  * touchesBegan()
  * update()
@@ -93,7 +75,7 @@ extension GameScene {
 }
 
 /*:
- # Game Setup
+ ## Game Setup
  * setupBoard()
  * setupArrowButtons()
  * setupPlayer()
@@ -271,7 +253,7 @@ extension GameScene {
 }
 
 /*:
- # Game Physic - SKPhysicsContactDelegate
+ ## Game Physic - SKPhysicsContactDelegate
  * killedEnemy()
  * enemyHitPlayer()
 */
@@ -355,7 +337,7 @@ extension GameScene: SKPhysicsContactDelegate {
 }
 
 /*:
- # Update functions
+ ## Update functions
  * processPlayerMovement()
  * processEnemiesMovement()
  * updateEnemyDirection()
@@ -543,7 +525,7 @@ extension GameScene {
 }
 
 /*:
- # Game Buttons - ButtonDelegate
+ ## Game Buttons - ButtonDelegate
 */
 extension GameScene: ButtonDelegate {
     enum ControlButton: String {
@@ -561,6 +543,31 @@ extension GameScene: ButtonDelegate {
         }
     }
 }
+
+/*:
+ ## Game Constants
+*/
+let kBoardCategory: UInt32 = 0x1 << 0
+let kPlayerCategory: UInt32 = 0x1 << 1
+let kEnemyCategory: UInt32 = 0x1 << 2
+let kPlayerBulletCategory: UInt32 = 0x1 << 3
+let kEnemyBulletCategory: UInt32 = 0x1 << 4
+
+// Control buttons
+var leftButtonTapped: Int = 0
+var rightButtonTapped: Int = 0
+
+// Enemies
+var enemyTimeLastFrame: CFTimeInterval = 0.0
+let enemyTimePerFrame: CFTimeInterval = 1.0
+let kMinEnemyBottomHeight: Float = 300.0
+
+// HUD: Heads Up Display (player's vitals and stats)
+var score: Int = 0
+var playerHealth: Float = 1.0
+var scoreLabel: SKLabelNode!
+var healthLabel: SKLabelNode!
+var gameEnded: Bool = false
 
 // Load GameScene into playground's live view
 let sceneView = SKView(frame: CGRect(x:0 , y:0, width: 480, height: 640))
