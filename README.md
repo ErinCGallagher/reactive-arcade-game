@@ -39,6 +39,8 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
     
     iii) run the following command in the terminal: <code> pod update </code>
     
+    - cocoa pods will need to be installed for these commands to run, see Common Errors #4
+    
     
 ### How to Open the Project?
 1. Open the <code>ReactiveArcadeGame.xcworkspace</code> file by selecting it
@@ -56,21 +58,36 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 
    iii) Restart Xcode
 
-<pre><code>
-Playground execution failed:
+    <pre><code>
+    Playground execution failed:
 
-error: MyPlayground.playground:5:8: error: no such module 'RxSwift'
-import RxSwift
-       ^
+    error: MyPlayground.playground:5:8: error: no such module 'RxSwift'
+    import RxSwift
+           ^
 
-error: MyPlayground.playground:6:8: error: no such module 'RxCocoa'
-import RxCocoa
-       ^
-</code></pre>
-
-   
-
+    error: MyPlayground.playground:6:8: error: no such module 'RxCocoa'
+    import RxCocoa
+           ^
+    </code></pre>
 
 2. "Runnig MyPlayground" continuously loads and never succeeds
 
     i) Same solution as #1
+    
+3. Could not look up symbols
+
+    i) Same solution as #1
+    
+<pre><code>
+Playground execution failed:
+
+error: Couldn't lookup symbols:
+  RxCocoa.BehaviorRelay.asObservable() -> RxSwift.Observable<A>
+  RxCocoa.BehaviorRelay.asObservable() -> RxSwift.Observable<A>
+</code></pre>
+    
+4. Cocoa pods not installed
+
+    i) run this command in the terminal <code> sudo gem install cocoapods </code>
+
+    <code>-bash: pod: command not found</code>
