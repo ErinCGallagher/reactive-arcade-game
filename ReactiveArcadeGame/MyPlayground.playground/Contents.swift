@@ -39,7 +39,13 @@ extension GameScene {
     // Hint: [self.getNodeAtTouchLocation()] returns the location of a touch as a [SKNode]
     // Hint: [ChildNodeName.board.rawValue] is the name of the board node
     private func setUpFireBulletsObserver() {
-        // TODO: Complete during workshop
+        userClickSubject
+            .asObservable()
+            .filter { self.getNodeAtTouchLocation($0).name == ChildNodeName.board.rawValue }
+            .subscribe(onNext: { _ in
+                self.firePlayerBullets()
+            })
+            .disposed(by: disposeBag)
     }
     
     
@@ -63,8 +69,8 @@ extension GameScene {
         // Set up an observable which emits True when the player's health is above 0
         // and otherwise emits false
         var playerStatus: Observable<Bool> {
-            // TODO: Complete during workshop, replace the return statement below
-            return Observable.just(true)
+            return playerHealthSubject
+                .map { $0 > 0 }
         }
         
         // TASK #2 B
@@ -73,8 +79,16 @@ extension GameScene {
         //   1) The player has died
         //   2) The enemies have invaded
         // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
-        
-        // TODO: Complete during workshop
+        Observable.combineLatest(playerStatus, enemiesInvaded)
+            .skip(1)
+            .subscribe(onNext: { [weak self] playerStatus, enemiesInvaded in
+                guard let this = self else { return }
+                print("Player won \(playerStatus), Enemies Won \(enemiesInvaded)")
+                if !playerStatus || enemiesInvaded {
+                    this.gameOver()
+                }
+            })
+            .disposed(by: disposeBag)
     }
     
     // Task # 3
@@ -84,7 +98,15 @@ extension GameScene {
     // Hint: Use [allEnemies] Subject to detect when no enemies are remaining
     // Hint: Chain the [map] and [filter] operators
     private func setUpPlayerWinsObserver() {
-        // TODO: Complete after workshop
+        allEnemies
+            .skip(1)
+            .asObservable()
+            .map { $0.isEmpty }
+            .filter { $0 == true }
+            .subscribe(onNext: { [weak self] _ in
+                self?.playerWins()
+            })
+            .disposed(by: disposeBag)
     }
     
     // Logs player Health and number of enemies to the console while the game is running.
