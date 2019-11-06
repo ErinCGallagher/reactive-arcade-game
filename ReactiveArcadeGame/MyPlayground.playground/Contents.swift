@@ -23,6 +23,19 @@ class GameScene: SKScene {
 */
 extension GameScene {
     private func setupObservables() {
+        // Use allEnemies to check if the player winned
+        
+        
+        
+        
+        // Use playerHealthSubject to check if the player lost
+        
+        
+        
+        
+        // Use enemyLowestPosition to check if the player lost
+        
+        
         
     }
 }
