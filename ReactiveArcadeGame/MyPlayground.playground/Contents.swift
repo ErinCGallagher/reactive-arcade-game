@@ -39,32 +39,11 @@ class GameScene: SKScene {
 
 /*:
  # Observable functions
+ * Workshop Task #1: setUpFireBulletsObserver()
+ * Workshop Task #2: setUpGameOverObserver()
+ * Workshop Task #3: setUpPlayerWinsObserver()
 */
 extension GameScene {
-    private func setupObservables() {
-        playerHealthSubject
-            .subscribe { playerHealth in
-                print("playerHealth \(playerHealth)")
-            }
-            .disposed(by: disposeBag)
-        
-        allEnemies.asObservable()
-            .subscribe(onNext: { enemies in
-                print("enemies \(enemies.count)")
-            })
-            .disposed(by: disposeBag)
-        
-        // Observes the stream of enemies and calls [playerWins()] when none are remaining
-        allEnemies
-            .skip(1)
-            .asObservable()
-            .map { $0.isEmpty }
-            .filter { $0 == true }
-            .subscribe(onNext: { [weak self] _ in
-                self?.playerWins()
-            })
-            .disposed(by: disposeBag)
-    }
     
     // Helper function that returns a [SKNode] given a [UITouch] object.
     private func getNodeAtTouchLocation(_ touch: UITouch) -> SKNode {
@@ -86,10 +65,12 @@ extension GameScene {
             .subscribe(onNext: { _ in
                 self.firePlayerBullets()
             })
+            .disposed(by: disposeBag)
     }
     
     
     
+    // TASK #2
     // Sets up the required Observables and Observers to detect when the game is over.
     private func setUpGameOverObserver() {
         // emits true when the enemies hve reached the bottom of the screen
@@ -129,6 +110,39 @@ extension GameScene {
             })
             .disposed(by: disposeBag)
     }
+    
+    // Task # 3
+    // Set up an observer which detects and reacts when the player wins the game.
+    // The player wins when there are no enemies remaining
+    // Perform the [playerWins()] action when the observable emits
+    // Hint: Use [allEnemies] Subject to detect when no enemies are remaining
+    // Hint: Chain the [map] and [filter] operators
+    private func setUpPlayerWinsObserver() {
+        allEnemies
+            .skip(1)
+            .asObservable()
+            .map { $0.isEmpty }
+            .filter { $0 == true }
+            .subscribe(onNext: { [weak self] _ in
+                self?.playerWins()
+            })
+            .disposed(by: disposeBag)
+    }
+    
+    // Logs player Health and number of enemies to the console while the game is running.
+    private func setupConsoleLoggingObservables() {
+        playerHealthSubject
+            .subscribe { playerHealth in
+                print("playerHealth \(playerHealth)")
+            }
+            .disposed(by: disposeBag)
+        
+        allEnemies.asObservable()
+            .subscribe(onNext: { enemies in
+                print("enemies \(enemies.count)")
+            })
+            .disposed(by: disposeBag)
+    }
 }
 
 /*:
@@ -142,9 +156,10 @@ extension GameScene {
     // overrides this method by setting up the board, arrow button, player, enemies and player HUD.
     override public func didMove(to view: SKView) {
         super.didMove(to: view)
-        setupObservables()
+        setupConsoleLoggingObservables()
         setUpFireBulletsObserver()
         setUpGameOverObserver()
+        setUpPlayerWinsObserver()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
