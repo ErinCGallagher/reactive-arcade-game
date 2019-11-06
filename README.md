@@ -35,3 +35,32 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
    - Xcode should open the selected file
    
 2. From the left panel, select the <code>MyPlayground</Code> file
+
+### Common Errors
+
+1. Missing RxSwift & RxCocoa
+
+    i) Product -> Clean Build Folder (shift + cmd + k)
+
+   ii) Product -> Build (cmd + b)
+
+   iii) Restart Xcode
+
+<pre><code>
+Playground execution failed:
+
+error: MyPlayground.playground:5:8: error: no such module 'RxSwift'
+import RxSwift
+       ^
+
+error: MyPlayground.playground:6:8: error: no such module 'RxCocoa'
+import RxCocoa
+       ^
+</code></pre>
+
+   
+
+
+2. "Runnig MyPlayground" continuously loads and never succeeds
+
+    i) Same solution as #1
