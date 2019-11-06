@@ -94,7 +94,7 @@ extension GameScene {
     private func setUpGameOverObserver() {
         // emits true when the enemies hve reached the bottom of the screen
         // This indicates that the enemies have "Invaded"
-        var enemyInvasion: Observable<Bool> {
+        var enemiesInvaded: Observable<Bool> {
             return enemyLowestPosition
                 .asObservable()
                 .map { [weak self] position in
@@ -116,14 +116,14 @@ extension GameScene {
         // Set up an observer which detects when the game is over.
         // The game is over if either:
         //   1) The player has died
-        //   2) The aliens have invaded
+        //   2) The enemies have invaded
         // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
-        Observable.combineLatest(playerStatus, enemyInvasion)
+        Observable.combineLatest(playerStatus, enemiesInvaded)
             .skip(1)
-            .subscribe(onNext: { [weak self] playerStatus, enemyInvasion in
+            .subscribe(onNext: { [weak self] playerStatus, enemiesInvaded in
                 guard let this = self else { return }
-                print("player won \(playerStatus), invaders Won \(enemyInvasion)")
-                if !playerStatus || enemyInvasion {
+                print("Player won \(playerStatus), Enemies Won \(enemiesInvaded)")
+                if !playerStatus || enemiesInvaded {
                     this.gameOver()
                 }
             })
@@ -144,6 +144,7 @@ extension GameScene {
         super.didMove(to: view)
         setupObservables()
         setUpFireBulletsObserver()
+        setUpGameOverObserver()
         setupBoard()
         setupArrowButtons()
         setupPlayer()
