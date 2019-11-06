@@ -12,6 +12,16 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 - The workspace file with RxCocoa & RxSwift installed 
 - <code>ReactiveArcadePlayground</code> exists within this workspace and that is required for RxSwift playground support
 
+## Branching Structure
+
+### Master
+- Default Bracnch
+- branch with worklshop tasks 1 - 3 not completed, find <code> // TODO: </code> in the code
+- Use this branch as a starting point when working through the workshop
+
+### workshop-solution
+- Branch with the completed solutions to workshop tasks 1 - 3
+
 ## Setup
 1. Download Xcode: https://apps.apple.com/ca/app/xcode/id497799835?mt=12
     - This step could take a while, please do this before the workshop
