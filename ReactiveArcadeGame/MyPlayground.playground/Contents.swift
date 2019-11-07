@@ -13,7 +13,7 @@ class GameScene: SKScene {
     let disposeBag = DisposeBag()
     let playerHealthSubject = PublishSubject<Float>()
     let allEnemies = BehaviorRelay<[SKNode]>(value: [])
-    let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
+    let enemyLowestPosition = PublishSubject<Float>()
     let userClickSubject = PublishSubject<UITouch>()
 }
 
@@ -59,7 +59,6 @@ extension GameScene {
         // This indicates that the enemies have "Invaded"
         var enemiesInvaded: Observable<Bool> {
             return enemyLowestPosition
-                .asObservable()
                 .map { [weak self] position in
                     guard let this = self else { return false }
                     return position < this.kMinEnemyBottomHeight
@@ -85,7 +84,6 @@ extension GameScene {
         Observable.combineLatest(playerStatus, enemiesInvaded)
             .subscribe(onNext: { [weak self] playerStatus, enemiesInvaded in
                 guard let this = self else { return }
-                print("Player won \(playerStatus), Enemies Won \(enemiesInvaded)")
                 if !playerStatus || enemiesInvaded {
                     this.gameOver()
                 }
@@ -506,7 +504,7 @@ extension GameScene {
             case .downThenLeft, .downThenRight:
                 let newYPosition = node.position.y - jumpPerFrame
                 node.position = CGPoint(x: node.position.x, y: newYPosition)
-                this.enemyLowestPosition.accept(Float(newYPosition + node.frame.minY))
+                this.enemyLowestPosition.onNext(Float(newYPosition + node.frame.minY))
             }
         }
     }
