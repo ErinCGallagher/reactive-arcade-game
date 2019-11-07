@@ -41,9 +41,11 @@ extension GameScene {
     private func setUpFireBulletsObserver() {
         userClickSubject
             .asObservable()
-            .filter { self.getNodeAtTouchLocation($0).name == ChildNodeName.board.rawValue }
-            .subscribe(onNext: { _ in
-                self.firePlayerBullets()
+            .filter { [weak self] touch in
+                self?.getNodeAtTouchLocation(touch).name == ChildNodeName.board.rawValue
+            }
+            .subscribe(onNext: { [weak self] _ in
+                self?.firePlayerBullets()
             })
             .disposed(by: disposeBag)
     }
@@ -71,6 +73,7 @@ extension GameScene {
         var playerStatus: Observable<Bool> {
             return playerHealthSubject
                 .map { $0 > 0 }
+                .distinctUntilChanged()
         }
         
         // TASK #2 B
@@ -80,7 +83,6 @@ extension GameScene {
         //   2) The enemies have invaded
         // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
         Observable.combineLatest(playerStatus, enemiesInvaded)
-            .skip(1)
             .subscribe(onNext: { [weak self] playerStatus, enemiesInvaded in
                 guard let this = self else { return }
                 print("Player won \(playerStatus), Enemies Won \(enemiesInvaded)")
