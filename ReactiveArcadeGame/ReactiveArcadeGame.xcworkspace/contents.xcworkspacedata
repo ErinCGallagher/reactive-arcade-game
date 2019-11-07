@@ -2,7 +2,10 @@
 <Workspace
    version = "1.0">
    <FileRef
-      location = "group:MyPlayground.playground">
+      location = "group:GamePlayground.playground">
+   </FileRef>
+   <FileRef
+      location = "group:ExercisePlayground.playground">
    </FileRef>
    <FileRef
       location = "group:ReactiveArcadeGame.xcodeproj">

@@ -5,7 +5,7 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 
 ## File Structure
 
-### MyPlayground.playground
+### GamePlayground.playground
 - The playground file used to build the arcade game
 
 ### ReactiveArcadeGame.xcworkspace
@@ -46,7 +46,7 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
 1. Open the <code>ReactiveArcadeGame.xcworkspace</code> file by selecting it
    - Xcode should open the selected file
    
-2. From the left panel, select the <code>MyPlayground</Code> file
+2. From the left panel, select the <code>GamePlayground</Code> file
 
 ## Common Errors
 
@@ -61,16 +61,16 @@ To follow along during the workshop, ensure to have completed the <b>SETUP</b> i
     <pre><code>
     Playground execution failed:
 
-    error: MyPlayground.playground:5:8: error: no such module 'RxSwift'
+    error: GamePlayground.playground:5:8: error: no such module 'RxSwift'
     import RxSwift
            ^
 
-    error: MyPlayground.playground:6:8: error: no such module 'RxCocoa'
+    error: GamePlayground.playground:6:8: error: no such module 'RxCocoa'
     import RxCocoa
            ^
     </code></pre>
 
-2. "Runnig MyPlayground" continuously loads and never succeeds
+2. "Runnig GamePlayground" continuously loads and never succeeds
 
     i) Same solution as #1
     
