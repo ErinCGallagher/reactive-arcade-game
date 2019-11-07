@@ -13,7 +13,7 @@ class GameScene: SKScene {
     let disposeBag = DisposeBag()
     let playerHealthSubject = PublishSubject<Float>()
     let allEnemies = BehaviorRelay<[SKNode]>(value: [])
-    let enemyLowestPosition = BehaviorRelay<Float>(value: 640)
+    let enemyLowestPosition = PublishSubject<Float>()
     let userClickSubject = PublishSubject<UITouch>()
 }
 
@@ -47,17 +47,18 @@ extension GameScene {
     // TASK #2
     // Sets up the required Observables and Observers to detect when the game is over.
     private func setUpGameOverObserver() {
-        // emits true when the enemies hve reached the bottom of the screen
+        // the enemies have reached the bottom of the screen
         // This indicates that the enemies have "Invaded"
-        var enemiesInvaded: Observable<Bool> {
-            return enemyLowestPosition
-                .asObservable()
-                .map { [weak self] position in
-                    guard let this = self else { return false }
-                    return position < this.kMinEnemyBottomHeight
+        enemyLowestPosition
+            .map { position -> Bool in
+                return position < self.kMinEnemyBottomHeight
+            }
+            .subscribe(onNext: { enemiesInvaded in
+                if enemiesInvaded {
+                    self.gameOver()
                 }
-                .distinctUntilChanged()
-        }
+            })
+
         
         // TASK #2 A
         // Set up an observable which emits True when the player's health is above 0
@@ -72,7 +73,7 @@ extension GameScene {
         // The game is over if either:
         //   1) The player has died
         //   2) The enemies have invaded
-        // Hint: Should react to the following observables [playerStatus] and [alienInvasion]
+        // Hint: Should react to the following observables [playerStatus] and [enemiesInvaded]
         
         // TODO: Complete during workshop
     }
@@ -482,7 +483,7 @@ extension GameScene {
             case .downThenLeft, .downThenRight:
                 let newYPosition = node.position.y - jumpPerFrame
                 node.position = CGPoint(x: node.position.x, y: newYPosition)
-                this.enemyLowestPosition.accept(Float(newYPosition + node.frame.minY))
+                this.enemyLowestPosition.onNext(Float(newYPosition + node.frame.minY))
             }
         }
     }
