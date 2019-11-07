@@ -14,6 +14,12 @@ public class Button: SKSpriteNode {
         
         super.init(texture: texture, color: color, size: size)
         
+        let shapeNode = SKShapeNode(rect: CGRect(origin: CGPoint(x: -size.width/2, y: -size.height/2), size: size))
+        shapeNode.fillColor = .clear
+        shapeNode.strokeColor = SKColor.white
+        shapeNode.lineWidth = 2
+        addChild(shapeNode)
+        
         setup()
     }
     
